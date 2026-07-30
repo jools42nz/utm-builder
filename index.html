@@ -22,9 +22,9 @@
 
 <main id="main">
   <p class="intro">
-    Build one UTM, or a whole batch. Add one value per line in each box below —
-    line 1 of every box combines into row 1, line 2 into row 2, and so on. A box
-    with a single value is used for every row.
+    Build one UTM, or a whole batch. Each row is one UTM: pick a GA4 Medium and its
+    options for Campaign Term and Source narrow automatically, so you can't create an
+    invalid combination. Add more rows for a batch — same one page, no separate bulk mode.
   </p>
 
   <form id="builder-form" novalidate>
@@ -51,53 +51,50 @@
           <option value="Paid">Paid</option>
           <option value="Organic">Organic</option>
         </select>
-        <p class="hint">Applies to this whole batch, and gates which GA4 Mediums are allowed.</p>
+        <p class="hint">Applies to this whole batch, and controls which GA4 Mediums are offered below.</p>
         <ul class="field-errors" id="paidOrganic-errors" aria-live="polite"></ul>
       </div>
     </fieldset>
 
     <fieldset class="field-group">
-      <legend>UTM values — one value per line</legend>
+      <legend>UTM rows</legend>
 
-      <div class="field">
-        <label for="pageUrl">Page URL</label>
-        <textarea id="pageUrl" name="pageUrl" rows="4" required aria-describedby="pageUrl-hint"></textarea>
-        <p class="hint" id="pageUrl-hint">Full URL(s), e.g. https://www.port.ac.uk/study/courses/example</p>
-        <ul class="field-errors" id="pageUrl-errors" aria-live="polite"></ul>
+      <div class="row-toolbar">
+        <button type="button" class="btn btn-secondary" id="add-row-btn">+ Add row</button>
+        <button type="button" class="btn btn-secondary" id="fill-down-btn">Copy row 1's Campaign/Medium/Term/Source/Content to all rows</button>
+        <details class="bulk-add">
+          <summary class="btn btn-secondary">+ Add rows from a list of Page URLs</summary>
+          <div class="bulk-add-body">
+            <label for="bulk-urls">Paste one Page URL per line — each becomes a new row</label>
+            <textarea id="bulk-urls" rows="4"></textarea>
+            <button type="button" class="btn btn-secondary" id="bulk-add-btn">Add rows</button>
+          </div>
+        </details>
       </div>
 
-      <div class="field">
-        <label for="campaign">Campaign</label>
-        <textarea id="campaign" name="campaign" rows="4" required></textarea>
-        <ul class="field-errors" id="campaign-errors" aria-live="polite"></ul>
+      <p id="rows-status-region" class="visually-hidden" role="status" aria-live="polite"></p>
+
+      <div class="rows-table-scroll">
+        <table class="rows-table" id="rows-table">
+          <caption class="visually-hidden">UTM rows — Page URL, Campaign, GA4 Medium, Campaign Term, Source and Campaign Content per row</caption>
+          <thead>
+            <tr>
+              <th scope="col">Row</th>
+              <th scope="col">Page URL</th>
+              <th scope="col">Campaign</th>
+              <th scope="col">GA4 Medium</th>
+              <th scope="col">Campaign Term</th>
+              <th scope="col">Source</th>
+              <th scope="col">Campaign Content</th>
+              <th scope="col">Generated UTM</th>
+              <th scope="col"><span class="visually-hidden">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="rows-tbody"></tbody>
+        </table>
       </div>
 
-      <div class="field">
-        <label for="gaMedium">GA4 Medium</label>
-        <textarea id="gaMedium" name="gaMedium" rows="4" required aria-describedby="gaMedium-hint"></textarea>
-        <p class="hint" id="gaMedium-hint">Must be valid for the Paid/Organic selection above.</p>
-        <ul class="field-errors" id="gaMedium-errors" aria-live="polite"></ul>
-      </div>
-
-      <div class="field">
-        <label for="campaignTerm">Campaign Term</label>
-        <textarea id="campaignTerm" name="campaignTerm" rows="4" required aria-describedby="campaignTerm-hint"></textarea>
-        <p class="hint" id="campaignTerm-hint">Must be valid for the GA4 Medium on the same row.</p>
-        <ul class="field-errors" id="campaignTerm-errors" aria-live="polite"></ul>
-      </div>
-
-      <div class="field">
-        <label for="source">Source</label>
-        <textarea id="source" name="source" rows="4" required aria-describedby="source-hint"></textarea>
-        <p class="hint" id="source-hint">Must be valid for the Campaign Term on the same row.</p>
-        <ul class="field-errors" id="source-errors" aria-live="polite"></ul>
-      </div>
-
-      <div class="field">
-        <label for="campaignContent">Campaign Content</label>
-        <textarea id="campaignContent" name="campaignContent" rows="4" required></textarea>
-        <ul class="field-errors" id="campaignContent-errors" aria-live="polite"></ul>
-      </div>
+      <datalist id="campaign-suggestions"></datalist>
     </fieldset>
 
     <div class="actions">
@@ -117,8 +114,6 @@
       <button type="button" class="btn btn-secondary" id="export-csv-btn">Export CSV</button>
       <button type="button" class="btn btn-primary" id="confirm-open-btn">Confirm &amp; add to shared view</button>
     </div>
-
-    <div id="results-table-container"></div>
   </section>
 </main>
 

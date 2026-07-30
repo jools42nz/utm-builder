@@ -184,9 +184,89 @@ textarea {
 }
 
 input[aria-invalid='true'],
+select[aria-invalid='true'],
 textarea[aria-invalid='true'] {
   border-color: var(--crimson);
   border-width: 2px;
+}
+
+/* Row-based UTM table */
+.row-toolbar {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.bulk-add summary {
+  list-style: none;
+}
+
+.bulk-add summary::-webkit-details-marker {
+  display: none;
+}
+
+.bulk-add-body {
+  background: var(--white);
+  border: 1px solid var(--cool-grey);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-top: 0.5rem;
+  min-width: 320px;
+}
+
+.bulk-add-body label {
+  font-size: 0.85rem;
+}
+
+.rows-table-scroll {
+  overflow-x: auto;
+}
+
+.rows-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px;
+}
+
+.rows-table th,
+.rows-table td {
+  text-align: left;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--cool-grey);
+  vertical-align: top;
+}
+
+.rows-table thead th {
+  background: var(--bg);
+  font-family: var(--font-head);
+  white-space: nowrap;
+}
+
+.rows-table td input,
+.rows-table td select {
+  min-width: 9rem;
+  min-height: 40px;
+  padding: 0.4rem 0.5rem;
+}
+
+.rows-table .row-pageUrl,
+.rows-table .row-campaign {
+  min-width: 14rem;
+}
+
+.rows-table select:disabled {
+  background: var(--bg);
+  color: var(--uop-grey);
+}
+
+.rows-table .row-source-other {
+  margin-top: 0.4rem;
+}
+
+.rows-table .row-result {
+  min-width: 14rem;
 }
 
 .filter-form {

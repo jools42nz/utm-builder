@@ -1,129 +1,129 @@
 /**
- * Validation rule data, mirroring the UTM tracker spreadsheet's three lookup
- * tabs: "Term Source", "Default Medium – Term", and
- * "Campaign name, GA4 medium, content".
+ * Validation rule data, derived from the real UTM tracker export
+ * ("JW__CSV_of_UTM_SheetCopy__Paste_of_UTM_Tracker.csv" — 8,509 usable
+ * historical rows out of 8,565, after dropping incomplete "Please complete
+ * all fields" placeholder rows).
  *
- * MOCK DATA — the real spreadsheet exports have not been supplied yet.
- * Every value below is a placeholder. Replace the four exported constants
- * with the real lookups and the rest of the app needs no changes — this
- * file is the single swap point for the rule set.
+ * The three named lookup tabs (Term Source, Default Medium – Term,
+ * Campaign name/GA4 medium/content) were not supplied directly — this data
+ * is reverse-engineered from actual historical usage instead. See the
+ * "Validation rules" section of README.md for exactly what was included,
+ * excluded as noise, and inferred outright.
  *
- * Inferred structure (not confirmed against the sheet — see README "Handover"):
- * - MEDIUM_BY_PAID_ORGANIC: which GA4 Mediums belong to Paid vs Organic.
- *   Inferred from the brief's own example ("a paid campaign cannot carry an
- *   organic-only term") — the sheet doesn't name a tab for this, so this is
- *   an assumption, not a direct copy of a tab.
- * - TERM_RULES_BY_MEDIUM: the "Default Medium – Term" tab — for each
- *   Medium, which Campaign Terms are valid, and a default.
- * - SOURCE_RULES_BY_TERM: the "Term Source" tab — for each Campaign Term,
- *   which Sources are valid.
- * - CAMPAIGN_RULES: the "Campaign name, GA4 medium, content" tab — for a
- *   known Campaign name, which Mediums and Content values are permitted.
- *   Campaigns not listed here are unrestricted by this tab (permissive
- *   default), since most campaigns won't be pre-registered.
+ * The core mechanism confirmed against the data: Campaign Term names are
+ * themselves prefixed "paid-" or "organic-" (e.g. "organic-email",
+ * "paid-search") — that prefix, not a separate lookup, is what enforces
+ * Paid/Organic. Each GA4 Medium only supports the Terms it was actually
+ * used with historically, split by that prefix; each Term only supports
+ * the Sources it was actually used with. Two terms without a prefix
+ * ("performance-max", legacy bare "affiliate") are hardcoded exceptions
+ * documented below.
  */
 
-export const PAID_ORGANIC_OPTIONS = ['Paid', 'Organic'];
-
-export const MEDIUM_BY_PAID_ORGANIC = {
-  Paid: ['cpc', 'paid-social', 'display', 'video'],
-  Organic: ['organic-social', 'email', 'referral', 'organic'],
+// medium -> { Paid: [...terms], Organic: [...terms] }. A missing bucket
+// means that medium has no historical support for that polarity — e.g.
+// "ppc" has only ever been used for Paid terms, so Organic batches don't
+// offer it at all.
+export const MEDIUM_TERM_MAP = {
+  email: { Paid: ['paid-email'], Organic: ['organic-email'] },
+  social: { Organic: ['organic-social'] },
+  ppc: { Paid: ['paid-search', 'paid-social', 'paid-display', 'paid-video', 'performance-max'] },
+  affiliate: { Paid: ['paid-3rd-party-website', 'paid-news', 'paid-digital-publishing', 'paid-3rd-party-virtual-event', 'paid-web-forum'] },
+  print: { Paid: ['paid-print', 'paid-outofhome'], Organic: ['organic-print', 'organic-out-of-home'] },
+  video: { Organic: ['organic-video'] },
+  referral: { Organic: ['organic-3rd-party-website', 'organic-web-forum', 'organic-3rd-party-virtual-event'] },
+  sms: { Paid: ['paid-whatsapp', 'paid-sms'], Organic: ['organic-sms'] },
+  push: { Paid: ['paid-push-notification'], Organic: ['organic-push-notification'] },
+  audio: { Paid: ['paid-audio'] },
 };
 
-export const TERM_RULES_BY_MEDIUM = {
-  cpc: { allowedTerms: ['brand', 'nonbrand', 'competitor'], defaultTerm: 'nonbrand' },
-  'paid-social': { allowedTerms: ['awareness', 'engagement', 'conversion'], defaultTerm: 'awareness' },
-  display: { allowedTerms: ['retargeting', 'prospecting'], defaultTerm: 'prospecting' },
-  video: { allowedTerms: ['preroll-retargeting', 'preroll-prospecting'], defaultTerm: 'preroll-prospecting' },
-  'organic-social': { allowedTerms: ['none'], defaultTerm: 'none' },
-  email: { allowedTerms: ['newsletter', 'nurture'], defaultTerm: 'newsletter' },
-  referral: { allowedTerms: ['partner'], defaultTerm: 'partner' },
-  organic: { allowedTerms: ['none'], defaultTerm: 'none' },
+// term -> [...sources], most-used first. Not treated as a closed list in
+// the UI — Source also offers "Other (new source)" since new affiliates,
+// publishers and platforms appear regularly and shouldn't be blocked.
+export const TERM_SOURCE_MAP = {
+  'paid-email': ['think-pg', 'careers-development-institute', 'uk-uni-search', 'reed', 'uni-taster-days', 'prospects', 'studyportals', 'sprint-education', 'the-student-room', 'pfc', 'ucas', 'unicompare', 'findaphd', 'uni-frog', 'total-jobs', 'jobs-ac-uk'],
+  'organic-email': ['staff-newsletter', 'student-newsletter', 'one-off-email', 'global-enquiry-nurture', 'rao-subject-nurture', 'bonjoro', 'alumni-email', 'pg-nurture-applicant', 'pg-nurture-fast-track', 'alumni-newsletter', 'sport-nurture-enquirer', 'pg-nurture-event', 'ug-nurture-aed', 'rao-he-advisers-nurture', 'staff-email-signature', 'pg-nurture-enquirer', 'ug-nurture-influencer', 'student-enewsletter', 'uni-taster-days', 'rao-pre16-nurture', 'rao-post16-nurture', 'admissions', 'ug-nurture-offerholder', 'ug-ucas-journey', 'clearing-nurture', 'sprint-education', 'alumni-one-off-email', 'ug-nurture-open-day', 'rao-post16-acquisition', 'linkedin', 'rao-he-advisers-conference'],
+  'organic-social': ['instagram', 'linkedin', 'facebook', 'twitter', 'unibuddy', 'linktree', 'tiktok', 'the-student-room', 'direct-message', 'you-tube', 'discord', 'staff-share'],
+  'paid-social': ['meta', 'tiktok', 'linkedin', 'facebook-and-instagram', 'facebook', 'snapchat', 'unicompare', 'idp', 'instagram', 'prospects', 'studyportals', 'quantcast'],
+  'paid-search': ['google', 'bing', 'performance-max', 'pmax', 'demand-gen', 'chatgpt'],
+  'paid-display': ['idp', 'pmax', 'quantcast', 'studyportals', 'demand-gen', 'picnic', 'NHS_app', 'programmatic', 'unicompare', 'uni_open_days', 'uni-frog', 'pearson', 'ucas', 'fone-media', 'amazon', 'open-days-com', 'google', 'cohort', 'findamasters'],
+  'paid-video': ['you-tube', 'itvx', 'disney', 'prime'],
+  'performance-max': ['pmax'],
+  'paid-3rd-party-website': ['masterscompare', 'Thinkpostgrad', 'complete-university-guide', 'whatuni-cug', 'uni-frog', 'findamasters', 'prospects', 'unicompare', 'findaphd', 'uni-taster-days', 'postgraduatestudentships', 'idp', 'postgraduatesearch', 'open-days-com', 'postgrad-com', 'what-uni', 'idp-hotcourses', 'jobs-ac-uk', 'study-international', 'Coursefindr', 'masters-portal', 'uk-uni-search', 'Politics-Home', 'study-portals', 'biomedical-scientist', 'ucas'],
+  'paid-news': ['qa-magazine', 'pfc', 'the-guardian', 'navy-news', 'portsmouth-visitor-guide'],
+  'paid-digital-publishing': ['National World', 'venatus-premium-takeover', 'venatus-reward-video', 'venatus-billboard'],
+  'paid-3rd-party-virtual-event': ['uni-frog'],
+  'paid-web-forum': ['the-student-room'],
+  'organic-print': ['course-postcard', 'prospectus', 'course-guide', 'postcard', 'pull-up-banner', 'poster', 'course-leaflet', 'letter', 'brochure', 'graduation-programme', 'visit-day-guide', 'research-degrees-brochure', 'rao-schools-guide', 'advisers-poster', 'uni_open_days'],
+  'paid-print': ['lyme-regis-fossil-festival', 'southsea-lifestyle', 'national-world-portsmouth', 'national-world-south', 'national-world-north', 'pfc', 'find-a-uni-guide', 'south-hampshire-college-group'],
+  'paid-outofhome': ['6-sheet', 'billboards', '48-sheet', 'phone-kiosk'],
+  'organic-out-of-home': ['applicant-experience-day-brochure'],
+  'organic-video': ['you-tube', 'campus-plasma-screen', 'campus-computer-background'],
+  'organic-3rd-party-website': ['qs-top-universities', 'uk-uni-search', 'uni-frog', 'uni-taster-days', 'ucas', 'tsr', 'study-link', 'unicompare', 'Springpod', 'student-crowd', 'QS Top Universities'],
+  'organic-web-forum': ['the-student-room'],
+  'organic-3rd-party-virtual-event': ['open-day', 'Vepple'],
+  'paid-whatsapp': ['purlos'],
+  'paid-sms': ['unicompare', 'ucas'],
+  'organic-sms': ['one-off-sms', 'pg-nurture-event', 'ug-nurture-applicant', 'ug-nurture-aed'],
+  'paid-push-notification': ['unicompare', 'studyportals', 'uni-frog'],
+  'organic-push-notification': ['rao-post16-acquisition', 'cambridge_education_group'],
+  'paid-audio': ['radio', 'spotify'],
 };
 
-export const SOURCE_RULES_BY_TERM = {
-  brand: ['google', 'bing'],
-  nonbrand: ['google', 'bing'],
-  competitor: ['google'],
-  awareness: ['facebook', 'instagram', 'linkedin', 'tiktok'],
-  engagement: ['facebook', 'instagram', 'linkedin'],
-  conversion: ['facebook', 'instagram'],
-  retargeting: ['google-display', 'meta-audience-network'],
-  prospecting: ['google-display'],
-  'preroll-retargeting': ['youtube'],
-  'preroll-prospecting': ['youtube'],
-  none: ['facebook', 'instagram', 'linkedin', 'tiktok', 'organic-search', 'direct'],
-  newsletter: ['crm', 'mailchimp'],
-  nurture: ['crm', 'mailchimp'],
-  partner: ['partner-site'],
-};
+// Campaign names are free text (158 distinct historical values with no
+// fixed vocabulary — new ones are created constantly, which is the whole
+// point of the tool). This list only powers autocomplete suggestions, not
+// validation, to help avoid accidental near-duplicate campaign names.
+export const KNOWN_CAMPAIGNS = ['E17-degree', 'UG2025_CCI', 'UG2025_HSS', 'alumni-birthday-card', 'alumni-blogs', 'alumni-emails', 'alumni-event', 'alumni-fast-track', 'alumni-fundraising-futures-fund', 'alumni-graduation', 'alumni-postgraduate-promo', 'alumni-uop-social', 'alumni-update-details', 'bal-current-students', 'bal-socials', 'brand-uop', 'brand-uop-pfc', 'brand-uop-solve', 'degree-guides', 'global-partner', 'global2023-uop-jan-start', 'global2023-uop-main-cycle', 'global2024-uop-jan-start', 'global2024-uop-main-cycle', 'global2025-hss', 'global2025-uop-main-cycle', 'global2026-hss', 'global2026-uop-Jan-start', 'global2026-uop-main-cycle', 'global2026-uop-may-start', 'hss-socials', 'innovation-connect', 'internal-comms-staff', 'internal-comms-student', 'internal-comms-student-welcome-2024', 'new-course', 'pg2023-cci', 'pg2023-hss', 'pg2023-sah', 'pg2023-tec', 'pg2023-uop', 'pg2023-uop-jan-start', 'pg2023-uop-main-cycle', 'pg2023-uop-open-eve', 'pg2023-uop-pgr', 'pg2023-uop-pgr-bursaries', 'pg2024-alumni-uop-open-eve', 'pg2024-bal', 'pg2024-hss', 'pg2024-sah', 'pg2024-uop', 'pg2024-uop-bursaries', 'pg2024-uop-jan-start', 'pg2024-uop-main-cycle', 'pg2024-uop-open-eve', 'pg2024-uop-pgr', 'pg2024-uop-pgr-bursaries', 'pg2025', 'pg2025-bal', 'pg2025-cci', 'pg2025-hss', 'pg2025-sah', 'pg2025-uop', 'pg2025-uop-fast-track', 'pg2025-uop-main-cycle', 'pg2025-uop-open-eve', 'pg2025-uop-pgr', 'pg2025-uop-pgr-bursaries', 'pg2026', 'pg2026-bal', 'pg2026-cci', 'pg2026-hss', 'pg2026-sah', 'pg2026-tec', 'pg2026-uop', 'pg2026-uop-pgr', 'pg2026-uop-pgr-bursaries', 'pg2027', 'plastics-policy', 'rao-post16-bal', 'rao-post16-cci', 'rao-post16-hss', 'rao-post16-sah', 'rao-post16-teachers-and-advisers', 'rao-post16-tec', 'rao-post16-uop', 'rao-post16-uop-getting-started', 'rao-post16-uop-personal-statement-hub', 'rao-pre16-teachers-and-advisers', 'rao-pre16-uop-nurture', 'rao-teachers-and-advisers', 'rao-teachers-and-advisers-cpd-hub', 'rao-teachers-and-advisers-he-advisers-conference', 'recruitment-awareness', 'sah-2026', 'sah-print-2025', 'sah-socials', 'short-courses', 'sport-current-members', 'sport-prospective-members', 'study-while-working-da', 'studying-while-working2023-da', 'studying-while-working2023-latw', 'studying-while-working2024', 'studying-while-working2024-da', 'studying-while-working2024-latw', 'studying-while-working2025-da', 'ug-ongoing', 'ug2023-hss', 'ug2023-sah', 'ug2023-tec', 'ug2023-uop', 'ug2023-uop-clearing', 'ug2023-uop-openday', 'ug2023-uop-openday-influencers', 'ug2024-bal', 'ug2024-cci', 'ug2024-hss', 'ug2024-sah', 'ug2024-tec', 'ug2024-uop', 'ug2024-uop-aed', 'ug2024-uop-clearing', 'ug2024-uop-influencers', 'ug2024-uop-main-cycle', 'ug2024-uop-main-cycle-influencers', 'ug2024-uop-openday', 'ug2025-bal', 'ug2025-bal-clearing', 'ug2025-cci-clearing', 'ug2025-hss-clearing', 'ug2025-sah-clearing', 'ug2025-tec-clearing', 'ug2025-uop', 'ug2025-uop-clearing', 'ug2025-uop-clearing-crm', 'ug2025-uop-clearing-influencers', 'ug2025-uop-clearing-web', 'ug2025_sah', 'ug2026--uopl-sc-educator-targeting', 'ug2026-clearing', 'ug2026-offer-holder', 'ug2026-sah', 'ug2026-uop-openday', 'ug2026-uopl-oed', 'ug2026-uopl-open-day', 'ug2026_bal', 'ug2026_cci', 'ug2026_hss', 'ug2026_mailchimp', 'ug2026_sah', 'ug2026_tec', 'ug2026_uop', 'ug2027-uop-openday', 'ug2027-uop-prospectus', 'uop-social', 'uop-social-community', 'uop-social-student-generated'];
 
-export const CAMPAIGN_RULES = {
-  // Example of a pre-registered campaign restricting its own mediums/content.
-  // Campaign names not listed here are unrestricted by this tab.
-  'open-day-2026': {
-    allowedMediums: ['cpc', 'paid-social', 'email'],
-    allowedContent: ['hero-banner', 'text-link', 'carousel'],
-  },
-};
+// A small number of legacy terms/mediums exist in the historical data but
+// are deliberately excluded going forward — see README "Validation rules"
+// for why each one was dropped (noise vs. genuinely superseded patterns).
+
+/** Every selectable GA4 Medium, in a fixed display order. */
+export const MEDIUM_OPTIONS = Object.keys(MEDIUM_TERM_MAP);
+
+/** Mediums with at least one historical Term for the given Paid/Organic value. */
+export function getMediumsForPolarity(paidOrganic) {
+  return MEDIUM_OPTIONS.filter((medium) => (MEDIUM_TERM_MAP[medium][paidOrganic] || []).length > 0);
+}
+
+/** Campaign Terms valid for a given Medium + Paid/Organic combination. */
+export function getTermsForMedium(medium, paidOrganic) {
+  const rule = MEDIUM_TERM_MAP[medium];
+  return rule ? rule[paidOrganic] || [] : [];
+}
+
+/** Known Sources for a given Campaign Term (not exhaustive — see "Other"). */
+export function getSourcesForTerm(term) {
+  return TERM_SOURCE_MAP[term] || [];
+}
 
 /**
- * Validates one row's Paid/Organic → Medium → Term → Source → Campaign
- * chain. Returns an array of {field, message} errors; empty if valid.
- * `field` matches the six textarea field keys used throughout the app:
- * pageUrl, campaign, gaMedium, campaignTerm, source, campaignContent.
+ * Defensive validation of a fully-assembled row, re-checking the same
+ * Paid/Organic -> Medium -> Term chain the cascading selects already
+ * enforce. Kept because Source allows a free-typed "Other" value and rows
+ * can in principle be constructed programmatically (e.g. future CSV
+ * import), so this is the backstop, not the primary UX.
  */
-export function validateRow({ paidOrganic, campaign, gaMedium, campaignTerm, source, campaignContent }) {
+export function validateRow({ paidOrganic, gaMedium, campaignTerm }) {
   const errors = [];
 
-  const alignedMediums = MEDIUM_BY_PAID_ORGANIC[paidOrganic] || [];
-  if (!alignedMediums.includes(gaMedium)) {
+  const validMediums = getMediumsForPolarity(paidOrganic);
+  if (!validMediums.includes(gaMedium)) {
     errors.push({
       field: 'gaMedium',
-      message: `"${gaMedium}" is not a valid GA4 Medium for ${paidOrganic}. Allowed: ${alignedMediums.join(', ')}.`,
+      message: `"${gaMedium}" is not a valid GA4 Medium for ${paidOrganic}. Allowed: ${validMediums.join(', ')}.`,
     });
+    return errors;
   }
 
-  const mediumRule = TERM_RULES_BY_MEDIUM[gaMedium];
-  if (!mediumRule) {
-    errors.push({
-      field: 'gaMedium',
-      message: `"${gaMedium}" is not a recognised GA4 Medium. Allowed: ${Object.keys(TERM_RULES_BY_MEDIUM).join(', ')}.`,
-    });
-  } else if (!mediumRule.allowedTerms.includes(campaignTerm)) {
+  const validTerms = getTermsForMedium(gaMedium, paidOrganic);
+  if (!validTerms.includes(campaignTerm)) {
     errors.push({
       field: 'campaignTerm',
-      message: `"${campaignTerm}" is not a valid Campaign Term for medium "${gaMedium}". Allowed: ${mediumRule.allowedTerms.join(', ')}.`,
+      message: `"${campaignTerm}" is not a valid Campaign Term for medium "${gaMedium}" (${paidOrganic}). Allowed: ${validTerms.join(', ')}.`,
     });
-  }
-
-  const allowedSources = SOURCE_RULES_BY_TERM[campaignTerm];
-  if (!allowedSources) {
-    errors.push({
-      field: 'campaignTerm',
-      message: `"${campaignTerm}" is not a recognised Campaign Term, so no Source rule applies.`,
-    });
-  } else if (!allowedSources.includes(source)) {
-    errors.push({
-      field: 'source',
-      message: `"${source}" is not a valid Source for term "${campaignTerm}". Allowed: ${allowedSources.join(', ')}.`,
-    });
-  }
-
-  const campaignRule = CAMPAIGN_RULES[campaign];
-  if (campaignRule) {
-    if (campaignRule.allowedMediums && !campaignRule.allowedMediums.includes(gaMedium)) {
-      errors.push({
-        field: 'gaMedium',
-        message: `Campaign "${campaign}" only allows medium(s): ${campaignRule.allowedMediums.join(', ')}.`,
-      });
-    }
-    if (campaignRule.allowedContent && campaignContent && !campaignRule.allowedContent.includes(campaignContent)) {
-      errors.push({
-        field: 'campaignContent',
-        message: `Campaign "${campaign}" only allows content value(s): ${campaignRule.allowedContent.join(', ')}.`,
-      });
-    }
   }
 
   return errors;
