@@ -29,20 +29,31 @@ path (Google Sheets API / Apps Script were the alternative, but that's the
 exact failure mode this project replaces).
 
 Currently live at **https://utm-builder-608.pages.dev** — front end only; the
-shared view there is still the `localStorage` mock (see "Turning on the real
-shared view" below).
+shared view there is still the `localStorage` mock (see step 2 below).
 
-1. `npx wrangler login` (once per machine).
-2. `npx wrangler kv namespace create UTM_RECORDS`, then paste the returned id
+### Deploys are automatic
+
+`.github/workflows/deploy.yml` runs `wrangler pages deploy` on every push to
+`main`, using a Cloudflare API token stored as a GitHub Actions secret
+(`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` — see repo Settings →
+Secrets and variables → Actions). No manual deploy step, no token
+copy-pasted anywhere, for any future change.
+
+To turn on the real (non-mock) shared view:
+1. `npx wrangler kv namespace create UTM_RECORDS`, then paste the returned id
    into `wrangler.toml`'s `[[kv_namespaces]] id = "..."` (already done for the
-   live deploy above — namespace exists, just unused until step 3).
-3. In `js/dataAccess.js`, change `const BACKEND = 'mock'` to `'cloudflare'`.
+   live deploy above — namespace exists, just unused until step 2).
+2. In `js/dataAccess.js`, change `const BACKEND = 'mock'` to `'cloudflare'`.
    This is the single-file swap the data-access layer exists for — nothing
    else in the app needs to change.
-4. `npx wrangler pages deploy . --project-name=utm-builder`
+3. Push to `main` — the workflow above deploys it.
 
 `functions/api/utms.js` is the Pages Function backing `GET /api/utms` (list)
 and `POST /api/utms` (append) against the KV namespace.
+
+(Manual deploy still works if you ever need it outside CI:
+`npx wrangler login` once per machine, then
+`npx wrangler pages deploy . --project-name=utm-builder`.)
 
 ## File structure
 
@@ -59,6 +70,7 @@ js/utils.js              escapeHtml, CSV encoding, clipboard, file download, id 
 functions/api/utms.js    Cloudflare Pages Function: GET/POST against KV (only used when BACKEND = 'cloudflare')
 wrangler.toml            KV namespace binding
 tests/e2e.mjs            Playwright script exercising every Phase 4 test case below (dev-only, not deployed)
+.github/workflows/deploy.yml   Auto-deploys to Cloudflare Pages on every push to main
 ```
 
 ## Validation rules — derived from the real UTM tracker export
