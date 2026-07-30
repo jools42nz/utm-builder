@@ -23,8 +23,9 @@
 <main id="main">
   <p class="intro">
     Build one UTM, or a whole batch. Each row is one UTM: pick a GA4 Medium and its
-    options for Campaign Term and Source narrow automatically, so you can't create an
-    invalid combination. Add more rows for a batch — same one page, no separate bulk mode.
+    options for Campaign Term, Source and Campaign Content narrow automatically, so you
+    can't create an invalid combination. Add more rows for a batch — same one page, no
+    separate bulk mode.
   </p>
 
   <form id="builder-form" novalidate>
@@ -42,17 +43,6 @@
         <label for="date">Date</label>
         <input type="date" id="date" name="date" required />
         <ul class="field-errors" id="date-errors" aria-live="polite"></ul>
-      </div>
-
-      <div class="field">
-        <label for="paidOrganic">Paid / Organic</label>
-        <select id="paidOrganic" name="paidOrganic" required>
-          <option value="">Select one…</option>
-          <option value="Paid">Paid</option>
-          <option value="Organic">Organic</option>
-        </select>
-        <p class="hint">Applies to this whole batch, and controls which Campaign Term options are offered for each row's Medium below.</p>
-        <ul class="field-errors" id="paidOrganic-errors" aria-live="polite"></ul>
       </div>
     </fieldset>
 

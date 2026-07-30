@@ -71,18 +71,18 @@ function checkRequiredFields(row) {
 }
 
 /**
- * Evaluates one row: required-field check, the Paid/Organic -> Medium ->
- * Term defensive re-check (belt-and-braces — the cascading selects should
- * already prevent this), UTM construction, and duplicate flagging against
- * both earlier rows in this batch and the shared view's existing records.
+ * Evaluates one row: required-field check, the Medium -> Term defensive
+ * re-check (belt-and-braces — the cascading selects should already prevent
+ * this), UTM construction, and duplicate flagging against both earlier
+ * rows in this batch and the shared view's existing records.
  */
-export function evaluateRow(row, batch, seenInBatch, existingSet) {
+export function evaluateRow(row, seenInBatch, existingSet) {
   const requiredErrors = checkRequiredFields(row);
   if (requiredErrors.length > 0) {
     return { row, errors: requiredErrors, utm: null, isDuplicate: false, duplicateReason: null };
   }
 
-  const ruleErrors = validateRow({ paidOrganic: batch.paidOrganic, gaMedium: row.gaMedium, campaignTerm: row.campaignTerm });
+  const ruleErrors = validateRow({ gaMedium: row.gaMedium, campaignTerm: row.campaignTerm });
   const built = buildUtmUrl(row.pageUrl, row);
   const errors = [...ruleErrors];
   if (built.error) errors.push({ field: 'pageUrl', message: built.error });
@@ -105,12 +105,12 @@ export function evaluateRow(row, batch, seenInBatch, existingSet) {
 }
 
 /** Evaluates every row in the batch, tracking duplicates across the whole set. */
-export function generateBatch(rows, batch, existingUtms = []) {
+export function generateBatch(rows, existingUtms = []) {
   const seenInBatch = new Map();
   const existingSet = new Set(existingUtms);
 
   const results = rows.map((row, index) => {
-    const result = evaluateRow(row, batch, seenInBatch, existingSet);
+    const result = evaluateRow(row, seenInBatch, existingSet);
     if (result.utm && result.errors.length === 0 && !seenInBatch.has(result.utm)) {
       seenInBatch.set(result.utm, index);
     }

@@ -261,7 +261,8 @@ textarea[aria-invalid='true'] {
   color: var(--uop-grey);
 }
 
-.rows-table .row-source-other {
+.rows-table .row-source-other,
+.rows-table .row-campaignContent-other {
   margin-top: 0.4rem;
 }
 

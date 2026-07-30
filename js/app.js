@@ -1,12 +1,12 @@
-import { MEDIUM_OPTIONS, getTermsForMedium, getSourcesForTerm, KNOWN_CAMPAIGNS } from './rules.js';
+import { MEDIUM_OPTIONS, getTermsForMedium, getSourcesForTerm, getContentOptionsForCampaignMedium, derivePaidOrganic, KNOWN_CAMPAIGNS } from './rules.js';
 import { generateBatch } from './generator.js';
 import { escapeHtml, generateId, rowsToCsv, downloadFile } from './utils.js';
 import { dataAccess } from './dataAccess.js';
 
 const OTHER_SOURCE = '__other__';
+const OTHER_CONTENT = '__other__';
 
 const form = document.getElementById('builder-form');
-const paidOrganicSelect = document.getElementById('paidOrganic');
 const rowsTbody = document.getElementById('rows-tbody');
 const rowsStatusRegion = document.getElementById('rows-status-region');
 const statusRegion = document.getElementById('status-region');
@@ -32,10 +32,6 @@ function announceRows(message) {
 
 campaignSuggestions.innerHTML = KNOWN_CAMPAIGNS.map((c) => `<option value="${escapeHtml(c)}"></option>`).join('');
 
-function currentPaidOrganic() {
-  return paidOrganicSelect.value;
-}
-
 function fillSelect(selectEl, options, { placeholder, preserveValue } = {}) {
   const previous = preserveValue !== undefined ? preserveValue : selectEl.value;
   selectEl.innerHTML = '';
@@ -53,6 +49,8 @@ function fillSelect(selectEl, options, { placeholder, preserveValue } = {}) {
   return selectEl.value === previous;
 }
 
+// ---- Medium -> Term -> Source cascade ----
+
 function populateMediumOptions(tr, preserveValue) {
   const select = tr.querySelector('.row-gaMedium');
   const kept = fillSelect(select, MEDIUM_OPTIONS.map((m) => ({ value: m, label: m })), {
@@ -62,19 +60,12 @@ function populateMediumOptions(tr, preserveValue) {
   populateTermOptions(tr, kept ? select.value : '');
 }
 
-function termPlaceholder(mediumValue, terms) {
-  if (!currentPaidOrganic()) return 'Select Paid/Organic first…';
-  if (!mediumValue) return 'Select a Medium first…';
-  if (terms.length === 0) return `No ${currentPaidOrganic()} terms for this medium…`;
-  return 'Select…';
-}
-
 function populateTermOptions(tr, preserveValue) {
   const mediumSelect = tr.querySelector('.row-gaMedium');
   const termSelect = tr.querySelector('.row-campaignTerm');
-  const terms = mediumSelect.value && currentPaidOrganic() ? getTermsForMedium(mediumSelect.value, currentPaidOrganic()) : [];
+  const terms = mediumSelect.value ? getTermsForMedium(mediumSelect.value) : [];
   const kept = fillSelect(termSelect, terms.map((t) => ({ value: t, label: t })), {
-    placeholder: termPlaceholder(mediumSelect.value, terms),
+    placeholder: mediumSelect.value ? 'Select…' : 'Select a Medium first…',
     preserveValue,
   });
   termSelect.disabled = terms.length === 0;
@@ -87,7 +78,7 @@ function populateSourceOptions(tr, preserveValue) {
   const sourceOther = tr.querySelector('.row-source-other');
   const sources = termSelect.value ? getSourcesForTerm(termSelect.value) : [];
   const options = sources.map((s) => ({ value: s, label: s }));
-  options.push({ value: OTHER_SOURCE, label: 'Other (new source)…' });
+  if (termSelect.value) options.push({ value: OTHER_SOURCE, label: 'Other (new source)…' });
   const kept = fillSelect(sourceSelect, options, {
     placeholder: termSelect.value ? 'Select…' : 'Select a Term first…',
     preserveValue,
@@ -96,6 +87,31 @@ function populateSourceOptions(tr, preserveValue) {
   const isOther = kept && sourceSelect.value === OTHER_SOURCE;
   sourceOther.hidden = !isOther;
   if (!isOther) sourceOther.value = '';
+}
+
+// ---- Campaign + Medium -> Content cascade (separate from the chain above) ----
+
+function populateContentOptions(tr, preserveValue) {
+  const campaignInput = tr.querySelector('.row-campaign');
+  const mediumSelect = tr.querySelector('.row-gaMedium');
+  const contentSelect = tr.querySelector('.row-campaignContent');
+  const contentOther = tr.querySelector('.row-campaignContent-other');
+  const campaignValue = campaignInput.value.trim();
+  const ready = Boolean(campaignValue && mediumSelect.value);
+
+  let optionObjs = [];
+  if (ready) {
+    const contentOptions = getContentOptionsForCampaignMedium(campaignValue, mediumSelect.value);
+    optionObjs = contentOptions.map((c) => ({ value: c, label: c }));
+    optionObjs.push({ value: OTHER_CONTENT, label: 'Other (new content)…' });
+  }
+
+  const placeholder = !campaignValue ? 'Type a Campaign first…' : !mediumSelect.value ? 'Select a Medium first…' : 'Select…';
+  const kept = fillSelect(contentSelect, optionObjs, { placeholder, preserveValue });
+  contentSelect.disabled = !ready;
+  const isOther = kept && contentSelect.value === OTHER_CONTENT;
+  contentOther.hidden = !isOther;
+  if (!isOther) contentOther.value = '';
 }
 
 function updateRowNumbers() {
@@ -132,14 +148,22 @@ function createRowElement() {
       <select class="row-source" data-label="Source"></select>
       <input type="text" class="row-source-other" data-label="New source" placeholder="Type new source" hidden />
     </td>
-    <td><input type="text" class="row-campaignContent" data-label="Campaign Content" /></td>
+    <td>
+      <select class="row-campaignContent" data-label="Campaign Content"></select>
+      <input type="text" class="row-campaignContent-other" data-label="New content" placeholder="Type new content" hidden />
+    </td>
     <td class="row-result"></td>
     <td><button type="button" class="btn btn-secondary btn-small remove-row-btn" data-label="Remove row">Remove</button></td>
   `;
 
+  tr.querySelector('.row-campaign').addEventListener('input', () => {
+    clearRowResult(tr);
+    populateContentOptions(tr, '');
+  });
   tr.querySelector('.row-gaMedium').addEventListener('change', () => {
     clearRowResult(tr);
     populateTermOptions(tr, '');
+    populateContentOptions(tr, '');
   });
   tr.querySelector('.row-campaignTerm').addEventListener('change', () => {
     clearRowResult(tr);
@@ -153,7 +177,15 @@ function createRowElement() {
     if (isOther) sourceOther.focus();
     else sourceOther.value = '';
   });
-  tr.querySelectorAll('.row-pageUrl, .row-campaign, .row-campaignContent, .row-source-other').forEach((el) => {
+  tr.querySelector('.row-campaignContent').addEventListener('change', (e) => {
+    clearRowResult(tr);
+    const contentOther = tr.querySelector('.row-campaignContent-other');
+    const isOther = e.target.value === OTHER_CONTENT;
+    contentOther.hidden = !isOther;
+    if (isOther) contentOther.focus();
+    else contentOther.value = '';
+  });
+  tr.querySelectorAll('.row-pageUrl, .row-source-other, .row-campaignContent-other').forEach((el) => {
     el.addEventListener('input', () => clearRowResult(tr));
   });
   tr.querySelector('.remove-row-btn').addEventListener('click', () => {
@@ -164,6 +196,7 @@ function createRowElement() {
   });
 
   populateMediumOptions(tr, '');
+  populateContentOptions(tr, '');
   return tr;
 }
 
@@ -179,13 +212,18 @@ function getRowData(tr) {
   const sourceSelect = tr.querySelector('.row-source');
   const sourceOther = tr.querySelector('.row-source-other');
   const source = sourceSelect.value === OTHER_SOURCE ? sourceOther.value.trim() : sourceSelect.value;
+
+  const contentSelect = tr.querySelector('.row-campaignContent');
+  const contentOther = tr.querySelector('.row-campaignContent-other');
+  const campaignContent = contentSelect.value === OTHER_CONTENT ? contentOther.value.trim() : contentSelect.value;
+
   return {
     pageUrl: tr.querySelector('.row-pageUrl').value.trim(),
     campaign: tr.querySelector('.row-campaign').value.trim(),
     gaMedium: tr.querySelector('.row-gaMedium').value,
     campaignTerm: tr.querySelector('.row-campaignTerm').value,
     source,
-    campaignContent: tr.querySelector('.row-campaignContent').value.trim(),
+    campaignContent,
   };
 }
 
@@ -234,9 +272,9 @@ document.getElementById('fill-down-btn').addEventListener('click', () => {
   const source = getRowData(first);
   for (const tr of rest) {
     tr.querySelector('.row-campaign').value = source.campaign;
-    tr.querySelector('.row-campaignContent').value = source.campaignContent;
     populateMediumOptions(tr, source.gaMedium);
     populateTermOptions(tr, source.campaignTerm);
+
     const sourceSelect = tr.querySelector('.row-source');
     const isKnownSource = [...sourceSelect.options].some((o) => o.value === source.source);
     if (isKnownSource) {
@@ -245,16 +283,20 @@ document.getElementById('fill-down-btn').addEventListener('click', () => {
       populateSourceOptions(tr, OTHER_SOURCE);
       tr.querySelector('.row-source-other').value = source.source;
     }
+
+    populateContentOptions(tr, '');
+    const contentSelect = tr.querySelector('.row-campaignContent');
+    const isKnownContent = [...contentSelect.options].some((o) => o.value === source.campaignContent);
+    if (isKnownContent) {
+      populateContentOptions(tr, source.campaignContent);
+    } else if (source.campaignContent) {
+      populateContentOptions(tr, OTHER_CONTENT);
+      tr.querySelector('.row-campaignContent-other').value = source.campaignContent;
+    }
+
     clearRowResult(tr);
   }
   announceRows(`Copied row 1's Campaign, Medium, Term, Source and Content to ${rest.length} row(s).`);
-});
-
-paidOrganicSelect.addEventListener('change', () => {
-  [...rowsTbody.querySelectorAll('tr')].forEach((tr) => {
-    clearRowResult(tr);
-    populateTermOptions(tr, tr.querySelector('.row-campaignTerm').value);
-  });
 });
 
 document.getElementById('clear-btn').addEventListener('click', () => {
@@ -271,7 +313,6 @@ function getBatch() {
   return {
     setUpBy: document.getElementById('setUpBy').value.trim(),
     date: document.getElementById('date').value,
-    paidOrganic: paidOrganicSelect.value,
   };
 }
 
@@ -279,12 +320,11 @@ function validateBatchFields(batch) {
   const errors = [];
   if (!batch.setUpBy) errors.push({ field: 'setUpBy', message: 'Set Up By is required.' });
   if (!batch.date) errors.push({ field: 'date', message: 'Date is required.' });
-  if (!batch.paidOrganic) errors.push({ field: 'paidOrganic', message: 'Select Paid or Organic.' });
   return errors;
 }
 
 function clearBatchFieldErrors() {
-  for (const key of ['setUpBy', 'date', 'paidOrganic']) {
+  for (const key of ['setUpBy', 'date']) {
     const el = document.getElementById(`${key}-errors`);
     if (el) el.innerHTML = '';
   }
@@ -330,7 +370,7 @@ form.addEventListener('submit', async (event) => {
 
   const trs = [...rowsTbody.querySelectorAll('tr')];
   const rows = trs.map((tr) => getRowData(tr));
-  const { results } = generateBatch(rows, batch, existing);
+  const { results } = generateBatch(rows, existing);
 
   trs.forEach((tr, i) => writeRowResult(tr, results[i]));
 
@@ -357,7 +397,7 @@ document.getElementById('export-csv-btn').addEventListener('click', () => {
     r.errors.length > 0 ? 'Error' : r.isDuplicate ? 'Duplicate' : 'Valid',
     lastBatch.setUpBy,
     lastBatch.date,
-    lastBatch.paidOrganic,
+    derivePaidOrganic(r.row.campaignTerm),
     r.row.pageUrl,
     r.row.campaign,
     r.row.gaMedium,
@@ -408,7 +448,7 @@ confirmYesBtn.addEventListener('click', async () => {
     id: generateId(),
     setUpBy: lastBatch.setUpBy,
     date: lastBatch.date,
-    paidOrganic: lastBatch.paidOrganic,
+    paidOrganic: derivePaidOrganic(r.row.campaignTerm),
     pageUrl: r.row.pageUrl,
     campaign: r.row.campaign,
     gaMedium: r.row.gaMedium,
