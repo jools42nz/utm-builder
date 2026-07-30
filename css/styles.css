@@ -1,0 +1,368 @@
+/* University of Portsmouth brand tokens, matching the Page Standards Checker
+   (university-of-portsmouth-web-team/webpage-checker-tool). */
+:root {
+  --uop-purple: #621360;
+  --uop-purple-dark: #3c023c;
+  --uop-blue: #00a0ff;
+  --uop-blue-dark: #0078b4;
+  --uop-green: #00856c;
+  --crimson: #c4014b;
+  --orange: #e17300;
+
+  --white: #ffffff;
+  --cool-grey: #d1d1d1;
+  --soft-grey: #abaaaa;
+  --uop-grey: #505457;
+  --black: #000000;
+
+  --bg: #f7f5f8;
+  --ink: #2a2c2e;
+
+  --font-head: 'Encode Sans Expanded', 'Segoe UI', Arial, sans-serif;
+  --font-body: 'Open Sans', 'Segoe UI', Arial, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+
+  --radius: 10px;
+  --shadow: 0 1px 3px rgba(60, 2, 60, 0.1), 0 4px 16px rgba(60, 2, 60, 0.06);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  line-height: 1.5;
+}
+
+h1,
+h2,
+legend {
+  font-family: var(--font-head);
+  color: var(--uop-purple-dark);
+}
+
+main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 4rem;
+}
+
+.intro {
+  max-width: 60ch;
+}
+
+/* Header + nav */
+.site-header {
+  background: var(--uop-purple);
+  color: var(--white);
+  padding: 1rem 1.25rem;
+}
+
+.site-header-inner {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.site-brand {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.site-header h1 {
+  margin: 0.1rem 0 0.75rem;
+  color: var(--white);
+  font-size: 1.5rem;
+}
+
+.site-header nav {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  gap: 1rem;
+}
+
+.site-header nav a {
+  color: var(--white);
+  text-decoration: none;
+  padding: 0.4rem 0.1rem;
+  border-bottom: 3px solid transparent;
+  font-family: var(--font-head);
+}
+
+.site-header nav a:hover,
+.site-header nav a[aria-current='page'] {
+  border-bottom-color: var(--uop-blue);
+}
+
+/* Skip link */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--white);
+  color: var(--uop-purple-dark);
+  padding: 0.75rem 1rem;
+  z-index: 100;
+  border-radius: 0 0 var(--radius) 0;
+}
+
+.skip-link:focus {
+  left: 0;
+}
+
+/* Forms */
+.field-group {
+  border: 1px solid var(--cool-grey);
+  border-radius: var(--radius);
+  background: var(--white);
+  box-shadow: var(--shadow);
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.field {
+  margin-bottom: 1rem;
+}
+
+.field:last-child {
+  margin-bottom: 0;
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  font: inherit;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--soft-grey);
+  border-radius: 6px;
+  background: var(--white);
+  color: var(--ink);
+  min-height: 44px;
+}
+
+textarea {
+  min-height: 44px;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+}
+
+.hint {
+  margin: 0.3rem 0 0;
+  font-size: 0.85rem;
+  color: var(--uop-grey);
+}
+
+.field-errors {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  color: var(--crimson);
+  font-size: 0.9rem;
+}
+
+.field-errors:not(:empty) {
+  border-left: 3px solid var(--crimson);
+  padding-left: 0.6rem;
+}
+
+.field-errors li::before {
+  content: 'Error: ';
+  font-weight: 700;
+}
+
+input[aria-invalid='true'],
+textarea[aria-invalid='true'] {
+  border-color: var(--crimson);
+  border-width: 2px;
+}
+
+.filter-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  background: var(--white);
+  border: 1px solid var(--cool-grey);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+  align-items: end;
+}
+
+.filter-form .actions {
+  grid-column: 1 / -1;
+}
+
+/* Buttons */
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 1rem 0;
+}
+
+.btn {
+  font: inherit;
+  font-family: var(--font-head);
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 0.6rem 1.2rem;
+  min-height: 44px;
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+
+.btn-primary {
+  background: var(--uop-purple);
+  color: var(--white);
+}
+
+.btn-primary:hover {
+  background: var(--uop-purple-dark);
+}
+
+.btn-secondary {
+  background: var(--white);
+  color: var(--uop-purple);
+  border-color: var(--uop-purple);
+}
+
+.btn-secondary:hover {
+  background: var(--bg);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-small {
+  padding: 0.25rem 0.6rem;
+  min-height: auto;
+  font-size: 0.85rem;
+  margin-left: 0.5rem;
+}
+
+/* Results */
+.results-section {
+  background: var(--white);
+  border: 1px solid var(--cool-grey);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.25rem;
+}
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.results-table th,
+.results-table td {
+  text-align: left;
+  padding: 0.6rem 0.5rem;
+  border-bottom: 1px solid var(--cool-grey);
+  vertical-align: top;
+}
+
+.results-table thead th {
+  background: var(--bg);
+  font-family: var(--font-head);
+}
+
+.badge {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  color: var(--white);
+}
+
+.badge-valid {
+  background: var(--uop-green);
+}
+
+.badge-error {
+  background: var(--crimson);
+}
+
+.badge-warn {
+  background: var(--orange);
+  color: var(--black);
+}
+
+.row-error-list,
+.row-duplicate-note {
+  margin: 0.3rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+}
+
+.utm-output {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+.muted {
+  color: var(--uop-grey);
+}
+
+/* Dialog */
+.dialog-overlay:not([hidden]) {
+  display: flex;
+  position: fixed;
+  inset: 0;
+  background: rgba(42, 44, 46, 0.6);
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 200;
+}
+
+.dialog {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  max-width: 480px;
+  padding: 1.5rem;
+}
+
+/* Accessibility helpers */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+:focus-visible {
+  outline: 3px solid var(--uop-blue-dark);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

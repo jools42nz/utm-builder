@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Shared view — UTM Builder — University of Portsmouth</title>
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<header class="site-header">
+  <div class="site-header-inner">
+    <p class="site-brand">University of Portsmouth</p>
+    <h1>UTM Builder</h1>
+  </div>
+  <nav aria-label="Primary">
+    <a href="index.html">Builder</a>
+    <a href="shared.html" aria-current="page">Shared view</a>
+  </nav>
+</header>
+
+<main id="main">
+  <h2>Every UTM created</h2>
+  <p class="intro">Search or filter to check what's already live before you build something new.</p>
+
+  <form id="filter-form" class="filter-form" novalidate>
+    <div class="field">
+      <label for="search">Search</label>
+      <input type="search" id="search" name="search" placeholder="Search across all fields…" />
+    </div>
+    <div class="field">
+      <label for="filter-setUpBy">Set Up By</label>
+      <input type="text" id="filter-setUpBy" name="filter-setUpBy" />
+    </div>
+    <div class="field">
+      <label for="filter-campaign">Campaign</label>
+      <input type="text" id="filter-campaign" name="filter-campaign" />
+    </div>
+    <div class="field">
+      <label for="filter-date">Date</label>
+      <input type="date" id="filter-date" name="filter-date" />
+    </div>
+    <div class="field">
+      <label for="filter-paidOrganic">Paid / Organic</label>
+      <select id="filter-paidOrganic" name="filter-paidOrganic">
+        <option value="">All</option>
+        <option value="Paid">Paid</option>
+        <option value="Organic">Organic</option>
+      </select>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn btn-secondary" id="clear-filters-btn">Clear filters</button>
+      <button type="button" class="btn btn-secondary" id="export-shared-csv-btn">Export CSV</button>
+    </div>
+  </form>
+
+  <p id="shared-status-region" class="visually-hidden" role="status" aria-live="polite"></p>
+  <p id="shared-summary"></p>
+
+  <div id="shared-table-container"></div>
+</main>
+
+<script type="module" src="js/shared-app.js"></script>
+</body>
+</html>

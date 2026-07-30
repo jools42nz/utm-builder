@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UTM Builder — University of Portsmouth</title>
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<header class="site-header">
+  <div class="site-header-inner">
+    <p class="site-brand">University of Portsmouth</p>
+    <h1>UTM Builder</h1>
+  </div>
+  <nav aria-label="Primary">
+    <a href="index.html" aria-current="page">Builder</a>
+    <a href="shared.html">Shared view</a>
+  </nav>
+</header>
+
+<main id="main">
+  <p class="intro">
+    Build one UTM, or a whole batch. Add one value per line in each box below —
+    line 1 of every box combines into row 1, line 2 into row 2, and so on. A box
+    with a single value is used for every row.
+  </p>
+
+  <form id="builder-form" novalidate>
+    <fieldset class="field-group">
+      <legend>Batch details</legend>
+
+      <div class="field">
+        <label for="setUpBy">Set Up By</label>
+        <input type="text" id="setUpBy" name="setUpBy" required aria-describedby="setUpBy-hint" />
+        <p class="hint" id="setUpBy-hint">Your name, so colleagues know who created this batch.</p>
+        <ul class="field-errors" id="setUpBy-errors" aria-live="polite"></ul>
+      </div>
+
+      <div class="field">
+        <label for="date">Date</label>
+        <input type="date" id="date" name="date" required />
+        <ul class="field-errors" id="date-errors" aria-live="polite"></ul>
+      </div>
+
+      <div class="field">
+        <label for="paidOrganic">Paid / Organic</label>
+        <select id="paidOrganic" name="paidOrganic" required>
+          <option value="">Select one…</option>
+          <option value="Paid">Paid</option>
+          <option value="Organic">Organic</option>
+        </select>
+        <p class="hint">Applies to this whole batch, and gates which GA4 Mediums are allowed.</p>
+        <ul class="field-errors" id="paidOrganic-errors" aria-live="polite"></ul>
+      </div>
+    </fieldset>
+
+    <fieldset class="field-group">
+      <legend>UTM values — one value per line</legend>
+
+      <div class="field">
+        <label for="pageUrl">Page URL</label>
+        <textarea id="pageUrl" name="pageUrl" rows="4" required aria-describedby="pageUrl-hint"></textarea>
+        <p class="hint" id="pageUrl-hint">Full URL(s), e.g. https://www.port.ac.uk/study/courses/example</p>
+        <ul class="field-errors" id="pageUrl-errors" aria-live="polite"></ul>
+      </div>
+
+      <div class="field">
+        <label for="campaign">Campaign</label>
+        <textarea id="campaign" name="campaign" rows="4" required></textarea>
+        <ul class="field-errors" id="campaign-errors" aria-live="polite"></ul>
+      </div>
+
+      <div class="field">
+        <label for="gaMedium">GA4 Medium</label>
+        <textarea id="gaMedium" name="gaMedium" rows="4" required aria-describedby="gaMedium-hint"></textarea>
+        <p class="hint" id="gaMedium-hint">Must be valid for the Paid/Organic selection above.</p>
+        <ul class="field-errors" id="gaMedium-errors" aria-live="polite"></ul>
+      </div>
+
+      <div class="field">
+        <label for="campaignTerm">Campaign Term</label>
+        <textarea id="campaignTerm" name="campaignTerm" rows="4" required aria-describedby="campaignTerm-hint"></textarea>
+        <p class="hint" id="campaignTerm-hint">Must be valid for the GA4 Medium on the same row.</p>
+        <ul class="field-errors" id="campaignTerm-errors" aria-live="polite"></ul>
+      </div>
+
+      <div class="field">
+        <label for="source">Source</label>
+        <textarea id="source" name="source" rows="4" required aria-describedby="source-hint"></textarea>
+        <p class="hint" id="source-hint">Must be valid for the Campaign Term on the same row.</p>
+        <ul class="field-errors" id="source-errors" aria-live="polite"></ul>
+      </div>
+
+      <div class="field">
+        <label for="campaignContent">Campaign Content</label>
+        <textarea id="campaignContent" name="campaignContent" rows="4" required></textarea>
+        <ul class="field-errors" id="campaignContent-errors" aria-live="polite"></ul>
+      </div>
+    </fieldset>
+
+    <div class="actions">
+      <button type="submit" class="btn btn-primary" id="generate-btn">Generate UTMs</button>
+      <button type="button" class="btn btn-secondary" id="clear-btn">Clear form</button>
+    </div>
+  </form>
+
+  <p id="status-region" class="visually-hidden" role="status" aria-live="polite"></p>
+
+  <section id="results-section" class="results-section" hidden aria-labelledby="results-heading">
+    <h2 id="results-heading">Results</h2>
+    <p id="results-summary"></p>
+
+    <div class="actions">
+      <button type="button" class="btn btn-secondary" id="copy-all-btn">Copy all valid UTMs</button>
+      <button type="button" class="btn btn-secondary" id="export-csv-btn">Export CSV</button>
+      <button type="button" class="btn btn-primary" id="confirm-open-btn">Confirm &amp; add to shared view</button>
+    </div>
+
+    <div id="results-table-container"></div>
+  </section>
+</main>
+
+<div id="confirm-dialog" class="dialog-overlay" hidden>
+  <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-text">
+    <h2 id="confirm-dialog-title">Confirm shared view update</h2>
+    <p id="confirm-dialog-text">
+      Are you sure you are happy with the outputted UTM's, if so, click yes and the newly generated UTM's will populate into the shared view
+    </p>
+    <div class="actions">
+      <button type="button" class="btn btn-primary" id="confirm-yes-btn">Yes</button>
+      <button type="button" class="btn btn-secondary" id="confirm-cancel-btn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
