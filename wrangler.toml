@@ -2,10 +2,9 @@ name = "utm-builder"
 pages_build_output_dir = "."
 compatibility_date = "2026-07-27"
 
-# Create with `npx wrangler kv namespace create UTM_RECORDS` and paste the
-# returned id below, then set js/dataAccess.js's BACKEND constant to
-# 'cloudflare'. Until then this binding is unused — the app defaults to a
-# localStorage-only mock backend that needs no Cloudflare setup at all.
+# Bound and live. Still unused at runtime until js/dataAccess.js's BACKEND
+# constant is set to 'cloudflare' — the app defaults to a localStorage-only
+# mock backend that needs no Cloudflare setup at all.
 [[kv_namespaces]]
 binding = "UTM_RECORDS"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "3ba579c4196c4d35942de027d992f8a0"
