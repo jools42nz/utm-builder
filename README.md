@@ -85,12 +85,15 @@ bare `affiliate` term (2 rows, both Paid) — the latter is otherwise excluded,
 see below.
 
 From there:
-- **GA4 Medium → Campaign Term** (`MEDIUM_TERM_MAP`): each Medium only
-  offers the Terms it was actually used with historically, split into a
-  `Paid` and/or `Organic` bucket. A Medium with no historical rows of a
-  given polarity doesn't offer that polarity at all — e.g. `ppc` has never
-  been used for an Organic term, so Organic batches don't offer `ppc` as a
-  Medium option.
+- **GA4 Medium → Campaign Term** (`MEDIUM_TERM_MAP`): every Medium is always
+  selectable — Paid/Organic never removes a Medium from the list, it only
+  narrows that Medium's Campaign Term options, split into a `Paid` and/or
+  `Organic` bucket from historical usage. A Medium with no historical Terms
+  of the current polarity (e.g. `ppc` + `Organic`) shows a disabled Term
+  dropdown explaining why, rather than hiding the Medium itself — you can
+  always see and pick any real GA4 Medium, and the tool tells you if that
+  combination doesn't have a Term yet rather than pretending the Medium
+  doesn't exist.
 - **Campaign Term → Source** (`TERM_SOURCE_MAP`): each Term offers the
   Sources it was actually used with, most-used first. This list is **not
   a hard block** — the Source dropdown always includes "Other (new
@@ -114,14 +117,15 @@ errors, not real rules, and dropped:
   sensible convention — and `social` is Organic-only.
 - `push`/`referral` mediums each had exactly 1 row tagged with the unrelated
   term `paid-display` — dropped as clear mis-entries.
-- A legacy medium value `organic` (30 rows, using `organic-search`/
-  `organic-email`/`organic-social`) is **excluded from the Medium list
-  entirely** going forward. It duplicates what the dedicated `email`/`social`
-  mediums already cover and looks like a superseded pattern from before those
-  became separate mediums — keeping it would let users create the exact
-  ambiguity ("which medium is this really?") this tool exists to prevent.
 - A bare `affiliate` Campaign Term (2 rows, term name identical to the
   medium name) was dropped as an inconsistent entry, not a real category.
+
+A legacy medium value `organic` (30 rows, using `organic-search`/
+`organic-email`/`organic-social`) was initially left out of the Medium list
+entirely, on the theory that it duplicates what `email`/`social` already
+cover. That was a step too far — real GA4 Mediums should stay visible and
+selectable regardless of judgement calls about which one is "better," so
+`organic` is back in the list with its historical Organic terms attached.
 
 ### Fixed, not replicated: two UTM construction bugs
 
@@ -158,9 +162,11 @@ the fact. One row is one UTM; the single-UTM and bulk paths are the same
 form and the same code path — a "batch" of one row is just the single-UTM
 case.
 
-- **Paid/Organic** (batch-level) narrows the **GA4 Medium** options offered
-  in every row.
-- Picking a row's **Medium** narrows its **Campaign Term** options.
+- **GA4 Medium** always offers every real Medium — Paid/Organic never hides
+  one.
+- Picking a row's **Medium**, together with the batch's **Paid/Organic**,
+  narrows its **Campaign Term** options (disabled with an explanation if
+  that combination has no historical Terms).
 - Picking a row's **Campaign Term** narrows its **Source** options (plus
   "Other").
 - **+ Add row** adds one blank row; **+ Add rows from a list of Page URLs**
@@ -211,12 +217,15 @@ case.
 ## Phase 4 — verification
 
 Automated Playwright pass against a local static server (`tests/e2e.mjs`,
-24/24 checks passing):
+25/25 checks passing):
 
-- Organic hides Paid-only Mediums (`ppc`, `affiliate`, `audio`); Paid hides
-  Organic-only Mediums (`social`, `video`, `referral`).
+- Every real GA4 Medium (`ppc`, `affiliate`, `organic`, `audio`, etc.) is
+  offered regardless of the batch's Paid/Organic value.
 - Picking `email` under Paid only offers the `paid-email` Term; its Source
   list is the real historical one for that Term.
+- Picking a Medium with no Terms for the current polarity (`ppc` + Organic)
+  disables the Term dropdown with an explanation, instead of hiding the
+  Medium.
 - A valid row generates a UTM matching the confirmed real param
   order/casing exactly.
 - Choosing "Other" for Source accepts a brand-new value un-blocked.

@@ -20,13 +20,15 @@
  * documented below.
  */
 
-// medium -> { Paid: [...terms], Organic: [...terms] }. A missing bucket
-// means that medium has no historical support for that polarity — e.g.
-// "ppc" has only ever been used for Paid terms, so Organic batches don't
-// offer it at all.
+// medium -> { Paid: [...terms], Organic: [...terms] }. Every GA4 Medium is
+// always selectable — Paid/Organic never hides a Medium, it only narrows
+// which Campaign Terms are offered for it (a missing bucket here means that
+// medium has no historical Terms of that polarity, so the Term dropdown
+// will be empty/disabled rather than the Medium itself being unavailable).
 export const MEDIUM_TERM_MAP = {
   email: { Paid: ['paid-email'], Organic: ['organic-email'] },
   social: { Organic: ['organic-social'] },
+  organic: { Organic: ['organic-search', 'organic-email', 'organic-social'] },
   ppc: { Paid: ['paid-search', 'paid-social', 'paid-display', 'paid-video', 'performance-max'] },
   affiliate: { Paid: ['paid-3rd-party-website', 'paid-news', 'paid-digital-publishing', 'paid-3rd-party-virtual-event', 'paid-web-forum'] },
   print: { Paid: ['paid-print', 'paid-outofhome'], Organic: ['organic-print', 'organic-out-of-home'] },
@@ -76,19 +78,14 @@ export const TERM_SOURCE_MAP = {
 // validation, to help avoid accidental near-duplicate campaign names.
 export const KNOWN_CAMPAIGNS = ['E17-degree', 'UG2025_CCI', 'UG2025_HSS', 'alumni-birthday-card', 'alumni-blogs', 'alumni-emails', 'alumni-event', 'alumni-fast-track', 'alumni-fundraising-futures-fund', 'alumni-graduation', 'alumni-postgraduate-promo', 'alumni-uop-social', 'alumni-update-details', 'bal-current-students', 'bal-socials', 'brand-uop', 'brand-uop-pfc', 'brand-uop-solve', 'degree-guides', 'global-partner', 'global2023-uop-jan-start', 'global2023-uop-main-cycle', 'global2024-uop-jan-start', 'global2024-uop-main-cycle', 'global2025-hss', 'global2025-uop-main-cycle', 'global2026-hss', 'global2026-uop-Jan-start', 'global2026-uop-main-cycle', 'global2026-uop-may-start', 'hss-socials', 'innovation-connect', 'internal-comms-staff', 'internal-comms-student', 'internal-comms-student-welcome-2024', 'new-course', 'pg2023-cci', 'pg2023-hss', 'pg2023-sah', 'pg2023-tec', 'pg2023-uop', 'pg2023-uop-jan-start', 'pg2023-uop-main-cycle', 'pg2023-uop-open-eve', 'pg2023-uop-pgr', 'pg2023-uop-pgr-bursaries', 'pg2024-alumni-uop-open-eve', 'pg2024-bal', 'pg2024-hss', 'pg2024-sah', 'pg2024-uop', 'pg2024-uop-bursaries', 'pg2024-uop-jan-start', 'pg2024-uop-main-cycle', 'pg2024-uop-open-eve', 'pg2024-uop-pgr', 'pg2024-uop-pgr-bursaries', 'pg2025', 'pg2025-bal', 'pg2025-cci', 'pg2025-hss', 'pg2025-sah', 'pg2025-uop', 'pg2025-uop-fast-track', 'pg2025-uop-main-cycle', 'pg2025-uop-open-eve', 'pg2025-uop-pgr', 'pg2025-uop-pgr-bursaries', 'pg2026', 'pg2026-bal', 'pg2026-cci', 'pg2026-hss', 'pg2026-sah', 'pg2026-tec', 'pg2026-uop', 'pg2026-uop-pgr', 'pg2026-uop-pgr-bursaries', 'pg2027', 'plastics-policy', 'rao-post16-bal', 'rao-post16-cci', 'rao-post16-hss', 'rao-post16-sah', 'rao-post16-teachers-and-advisers', 'rao-post16-tec', 'rao-post16-uop', 'rao-post16-uop-getting-started', 'rao-post16-uop-personal-statement-hub', 'rao-pre16-teachers-and-advisers', 'rao-pre16-uop-nurture', 'rao-teachers-and-advisers', 'rao-teachers-and-advisers-cpd-hub', 'rao-teachers-and-advisers-he-advisers-conference', 'recruitment-awareness', 'sah-2026', 'sah-print-2025', 'sah-socials', 'short-courses', 'sport-current-members', 'sport-prospective-members', 'study-while-working-da', 'studying-while-working2023-da', 'studying-while-working2023-latw', 'studying-while-working2024', 'studying-while-working2024-da', 'studying-while-working2024-latw', 'studying-while-working2025-da', 'ug-ongoing', 'ug2023-hss', 'ug2023-sah', 'ug2023-tec', 'ug2023-uop', 'ug2023-uop-clearing', 'ug2023-uop-openday', 'ug2023-uop-openday-influencers', 'ug2024-bal', 'ug2024-cci', 'ug2024-hss', 'ug2024-sah', 'ug2024-tec', 'ug2024-uop', 'ug2024-uop-aed', 'ug2024-uop-clearing', 'ug2024-uop-influencers', 'ug2024-uop-main-cycle', 'ug2024-uop-main-cycle-influencers', 'ug2024-uop-openday', 'ug2025-bal', 'ug2025-bal-clearing', 'ug2025-cci-clearing', 'ug2025-hss-clearing', 'ug2025-sah-clearing', 'ug2025-tec-clearing', 'ug2025-uop', 'ug2025-uop-clearing', 'ug2025-uop-clearing-crm', 'ug2025-uop-clearing-influencers', 'ug2025-uop-clearing-web', 'ug2025_sah', 'ug2026--uopl-sc-educator-targeting', 'ug2026-clearing', 'ug2026-offer-holder', 'ug2026-sah', 'ug2026-uop-openday', 'ug2026-uopl-oed', 'ug2026-uopl-open-day', 'ug2026_bal', 'ug2026_cci', 'ug2026_hss', 'ug2026_mailchimp', 'ug2026_sah', 'ug2026_tec', 'ug2026_uop', 'ug2027-uop-openday', 'ug2027-uop-prospectus', 'uop-social', 'uop-social-community', 'uop-social-student-generated'];
 
-// A small number of legacy terms/mediums exist in the historical data but
-// are deliberately excluded going forward — see README "Validation rules"
-// for why each one was dropped (noise vs. genuinely superseded patterns).
+// A small number of legacy terms exist in the historical data but are
+// deliberately excluded going forward — see README "Validation rules" for
+// why each one was dropped (noise, not a real category).
 
-/** Every selectable GA4 Medium, in a fixed display order. */
+/** Every selectable GA4 Medium, in a fixed display order. Always all shown — Paid/Organic narrows Campaign Term, not this list. */
 export const MEDIUM_OPTIONS = Object.keys(MEDIUM_TERM_MAP);
 
-/** Mediums with at least one historical Term for the given Paid/Organic value. */
-export function getMediumsForPolarity(paidOrganic) {
-  return MEDIUM_OPTIONS.filter((medium) => (MEDIUM_TERM_MAP[medium][paidOrganic] || []).length > 0);
-}
-
-/** Campaign Terms valid for a given Medium + Paid/Organic combination. */
+/** Campaign Terms valid for a given Medium + Paid/Organic combination — empty if that medium has no historical Terms of that polarity. */
 export function getTermsForMedium(medium, paidOrganic) {
   const rule = MEDIUM_TERM_MAP[medium];
   return rule ? rule[paidOrganic] || [] : [];
@@ -101,28 +98,21 @@ export function getSourcesForTerm(term) {
 
 /**
  * Defensive validation of a fully-assembled row, re-checking the same
- * Paid/Organic -> Medium -> Term chain the cascading selects already
- * enforce. Kept because Source allows a free-typed "Other" value and rows
- * can in principle be constructed programmatically (e.g. future CSV
+ * Medium -> Term chain the cascading selects already enforce. Kept because
+ * rows can in principle be constructed programmatically (e.g. future CSV
  * import), so this is the backstop, not the primary UX.
  */
 export function validateRow({ paidOrganic, gaMedium, campaignTerm }) {
   const errors = [];
 
-  const validMediums = getMediumsForPolarity(paidOrganic);
-  if (!validMediums.includes(gaMedium)) {
-    errors.push({
-      field: 'gaMedium',
-      message: `"${gaMedium}" is not a valid GA4 Medium for ${paidOrganic}. Allowed: ${validMediums.join(', ')}.`,
-    });
-    return errors;
-  }
-
   const validTerms = getTermsForMedium(gaMedium, paidOrganic);
   if (!validTerms.includes(campaignTerm)) {
     errors.push({
       field: 'campaignTerm',
-      message: `"${campaignTerm}" is not a valid Campaign Term for medium "${gaMedium}" (${paidOrganic}). Allowed: ${validTerms.join(', ')}.`,
+      message:
+        validTerms.length > 0
+          ? `"${campaignTerm}" is not a valid Campaign Term for medium "${gaMedium}" (${paidOrganic}). Allowed: ${validTerms.join(', ')}.`
+          : `"${gaMedium}" has no ${paidOrganic} Campaign Terms. Choose a different Medium, or switch Paid/Organic.`,
     });
   }
 

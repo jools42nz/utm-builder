@@ -1,4 +1,4 @@
-import { getMediumsForPolarity, getTermsForMedium, getSourcesForTerm, KNOWN_CAMPAIGNS } from './rules.js';
+import { MEDIUM_OPTIONS, getTermsForMedium, getSourcesForTerm, KNOWN_CAMPAIGNS } from './rules.js';
 import { generateBatch } from './generator.js';
 import { escapeHtml, generateId, rowsToCsv, downloadFile } from './utils.js';
 import { dataAccess } from './dataAccess.js';
@@ -55,21 +55,26 @@ function fillSelect(selectEl, options, { placeholder, preserveValue } = {}) {
 
 function populateMediumOptions(tr, preserveValue) {
   const select = tr.querySelector('.row-gaMedium');
-  const mediums = getMediumsForPolarity(currentPaidOrganic());
-  const kept = fillSelect(select, mediums.map((m) => ({ value: m, label: m })), {
-    placeholder: currentPaidOrganic() ? 'Select…' : 'Select Paid/Organic first…',
+  const kept = fillSelect(select, MEDIUM_OPTIONS.map((m) => ({ value: m, label: m })), {
+    placeholder: 'Select…',
     preserveValue,
   });
-  select.disabled = mediums.length === 0;
   populateTermOptions(tr, kept ? select.value : '');
+}
+
+function termPlaceholder(mediumValue, terms) {
+  if (!currentPaidOrganic()) return 'Select Paid/Organic first…';
+  if (!mediumValue) return 'Select a Medium first…';
+  if (terms.length === 0) return `No ${currentPaidOrganic()} terms for this medium…`;
+  return 'Select…';
 }
 
 function populateTermOptions(tr, preserveValue) {
   const mediumSelect = tr.querySelector('.row-gaMedium');
   const termSelect = tr.querySelector('.row-campaignTerm');
-  const terms = mediumSelect.value ? getTermsForMedium(mediumSelect.value, currentPaidOrganic()) : [];
+  const terms = mediumSelect.value && currentPaidOrganic() ? getTermsForMedium(mediumSelect.value, currentPaidOrganic()) : [];
   const kept = fillSelect(termSelect, terms.map((t) => ({ value: t, label: t })), {
-    placeholder: mediumSelect.value ? 'Select…' : 'Select a Medium first…',
+    placeholder: termPlaceholder(mediumSelect.value, terms),
     preserveValue,
   });
   termSelect.disabled = terms.length === 0;
@@ -248,7 +253,7 @@ document.getElementById('fill-down-btn').addEventListener('click', () => {
 paidOrganicSelect.addEventListener('change', () => {
   [...rowsTbody.querySelectorAll('tr')].forEach((tr) => {
     clearRowResult(tr);
-    populateMediumOptions(tr, tr.querySelector('.row-gaMedium').value);
+    populateTermOptions(tr, tr.querySelector('.row-campaignTerm').value);
   });
 });
 

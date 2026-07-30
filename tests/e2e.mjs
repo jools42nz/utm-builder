@@ -40,21 +40,21 @@ async function reloadKeepingStorage() {
   await page.goto(`${BASE}/index.html`);
 }
 
-// ---- Test 1: cascading dropdowns respect Paid/Organic ----
+// ---- Test 1: Medium is always fully offered; Paid/Organic narrows Term instead ----
 await resetPage();
 await page.selectOption('#paidOrganic', 'Organic');
 const organicMediums = await row().locator('.row-gaMedium option').allTextContents();
 log(
-  'Organic hides Paid-only mediums (ppc, affiliate, audio)',
-  !organicMediums.includes('ppc') && !organicMediums.includes('affiliate') && !organicMediums.includes('audio') && organicMediums.includes('email'),
+  'All GA4 Mediums are offered under Organic, including ppc/affiliate/organic/audio',
+  ['ppc', 'affiliate', 'organic', 'audio', 'email', 'social'].every((m) => organicMediums.includes(m)),
   organicMediums.join(',')
 );
 
 await page.selectOption('#paidOrganic', 'Paid');
 const paidMediums = await row().locator('.row-gaMedium option').allTextContents();
 log(
-  'Paid hides Organic-only mediums (social, video, referral)',
-  !paidMediums.includes('social') && !paidMediums.includes('video') && !paidMediums.includes('referral') && paidMediums.includes('ppc'),
+  'All GA4 Mediums are still offered under Paid, including social/video/referral',
+  ['ppc', 'affiliate', 'organic', 'audio', 'email', 'social', 'video', 'referral'].every((m) => paidMediums.includes(m)),
   paidMediums.join(',')
 );
 
@@ -65,6 +65,18 @@ log('email medium under Paid only offers paid-email', paidEmailTerms.includes('p
 await row().locator('.row-campaignTerm').selectOption('paid-email');
 const paidEmailSources = await row().locator('.row-source option').allTextContents();
 log('paid-email term offers its real historical sources', paidEmailSources.includes('reed') && paidEmailSources.includes('Other (new source)…'), paidEmailSources.join(','));
+
+// A medium with no terms for the current polarity shows a disabled, explained Term dropdown rather than the medium being hidden.
+await row().locator('.row-gaMedium').selectOption('ppc');
+await page.selectOption('#paidOrganic', 'Organic');
+const ppcUnderOrganicDisabled = await row().locator('.row-campaignTerm').isDisabled();
+const ppcUnderOrganicPlaceholder = await row().locator('.row-campaignTerm option').first().textContent();
+log(
+  'A medium with no terms for the current polarity (ppc + Organic) shows a disabled, explained Term dropdown rather than hiding the medium',
+  ppcUnderOrganicDisabled && ppcUnderOrganicPlaceholder.includes('No Organic terms'),
+  `disabled=${ppcUnderOrganicDisabled} placeholder="${ppcUnderOrganicPlaceholder}"`
+);
+await page.selectOption('#paidOrganic', 'Paid');
 
 // ---- Test 2: valid generation produces the correct real-world UTM shape ----
 await resetPage();
