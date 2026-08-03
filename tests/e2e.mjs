@@ -7,7 +7,7 @@ function log(name, pass, detail = '') {
   console.log(`${pass ? 'PASS' : 'FAIL'} - ${name}${detail ? ' :: ' + detail : ''}`);
 }
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH });
 const page = await browser.newPage();
 
 async function fillBatch({ setUpBy = 'E2E Tester', date = '2026-07-30' } = {}) {

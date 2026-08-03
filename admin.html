@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin — UTM Builder — University of Portsmouth</title>
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<header class="site-header">
+  <div class="site-header-inner">
+    <p class="site-brand">University of Portsmouth</p>
+    <h1>UTM Builder</h1>
+  </div>
+  <nav aria-label="Primary">
+    <a href="index.html">Builder</a>
+    <a href="shared.html">Shared view</a>
+    <a href="admin.html" aria-current="page">Admin</a>
+  </nav>
+</header>
+
+<main id="main">
+  <p class="intro">
+    Add a Campaign, Source or Campaign Content value permanently to the builder's
+    dropdowns, so future users don't have to keep choosing "Other" for something
+    that keeps coming up. This page is restricted to approved admins via
+    Cloudflare Access — anyone else who opens this URL is stopped at Cloudflare's
+    own login wall before this page loads.
+  </p>
+
+  <p id="admin-status-region" class="visually-hidden" role="status" aria-live="polite"></p>
+  <div id="admin-unauthorized" role="alert" hidden>
+    <p>
+      Not signed in via Cloudflare Access — this page's write API returned 401.
+      If you're testing locally without <code>wrangler pages dev</code>, or the
+      <code>/admin*</code> Access application isn't set up on this deployment yet,
+      see the README's "Admin: promoting 'Other' values" section.
+    </p>
+  </div>
+
+  <div id="admin-content" hidden>
+    <p class="muted">Signed in as <strong id="viewer-email"></strong></p>
+
+    <section class="field-group" aria-labelledby="add-campaign-heading">
+      <h2 id="add-campaign-heading">Add a Campaign</h2>
+      <form id="add-campaign-form">
+        <div class="field">
+          <label for="new-campaign-value">Campaign name</label>
+          <input type="text" id="new-campaign-value" required />
+        </div>
+        <div class="actions">
+          <button type="submit" class="btn btn-primary">Add campaign</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="field-group" aria-labelledby="add-source-heading">
+      <h2 id="add-source-heading">Add a Source</h2>
+      <form id="add-source-form">
+        <div class="field">
+          <label for="new-source-term">Campaign Term</label>
+          <select id="new-source-term" required></select>
+          <p class="hint">The new Source is only offered once this Term is picked in the builder.</p>
+        </div>
+        <div class="field">
+          <label for="new-source-value">Source name</label>
+          <input type="text" id="new-source-value" required />
+        </div>
+        <div class="actions">
+          <button type="submit" class="btn btn-primary">Add source</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="field-group" aria-labelledby="add-content-heading">
+      <h2 id="add-content-heading">Add Campaign Content</h2>
+      <form id="add-content-form">
+        <div class="field">
+          <label for="new-content-value">Campaign Content value</label>
+          <input type="text" id="new-content-value" required />
+        </div>
+        <div class="actions">
+          <button type="submit" class="btn btn-primary">Add content</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="field-group" aria-labelledby="current-overrides-heading">
+      <h2 id="current-overrides-heading">Admin-added values</h2>
+      <p class="hint">Only values added here can be removed — the base lists from js/rules.js aren't editable from this page.</p>
+      <div id="overrides-list"></div>
+    </section>
+  </div>
+</main>
+
+<script type="module" src="js/admin-app.js"></script>
+</body>
+</html>

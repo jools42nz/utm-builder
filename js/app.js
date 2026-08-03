@@ -1,4 +1,4 @@
-import { MEDIUM_OPTIONS, CAMPAIGN_OPTIONS, CONTENT_OPTIONS, getTermsForMedium, getSourcesForTerm } from './rules.js';
+import { MEDIUM_OPTIONS, getTermsForMedium, getCampaignOptions, getContentOptions, getSourcesForTerm, loadRuleOverrides } from './rulesOverrides.js';
 import { generateBatch } from './generator.js';
 import { escapeHtml, generateId, rowsToCsv, downloadFile } from './utils.js';
 import { dataAccess } from './dataAccess.js';
@@ -51,7 +51,7 @@ function fillSelect(selectEl, options, { placeholder, preserveValue } = {}) {
 function populateCampaignOptions(tr, preserveValue) {
   const select = tr.querySelector('.row-campaign');
   const other = tr.querySelector('.row-campaign-other');
-  const options = CAMPAIGN_OPTIONS.map((c) => ({ value: c, label: c }));
+  const options = getCampaignOptions().map((c) => ({ value: c, label: c }));
   options.push({ value: OTHER_CAMPAIGN, label: 'Other (new campaign)…' });
   const kept = fillSelect(select, options, { placeholder: 'Select…', preserveValue });
   const isOther = kept && select.value === OTHER_CAMPAIGN;
@@ -63,7 +63,7 @@ function populateCampaignOptions(tr, preserveValue) {
 function populateContentOptions(tr, preserveValue) {
   const select = tr.querySelector('.row-campaignContent');
   const other = tr.querySelector('.row-campaignContent-other');
-  const options = CONTENT_OPTIONS.map((c) => ({ value: c, label: c }));
+  const options = getContentOptions().map((c) => ({ value: c, label: c }));
   options.push({ value: OTHER_CONTENT, label: 'Other (new content)…' });
   const kept = fillSelect(select, options, { placeholder: 'Select…', preserveValue });
   const isOther = kept && select.value === OTHER_CONTENT;
@@ -474,4 +474,5 @@ confirmYesBtn.addEventListener('click', async () => {
   }
 });
 
+await loadRuleOverrides();
 addRow();

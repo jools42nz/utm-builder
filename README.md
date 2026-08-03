@@ -60,18 +60,91 @@ and `POST /api/utms` (append) against the KV namespace.
 ```
 index.html              Builder page: batch details + a repeatable row table (1 row = 1 UTM)
 shared.html              Shared view: searchable/filterable list of confirmed UTMs
+admin.html               Admin page: add/remove permanent Campaign/Source/Content values — see "Admin" below
 css/styles.css           UoP brand tokens (colors, type, focus states) matching the Page Standards Checker
 js/rules.js              MEDIUM_TERM_MAP / TERM_SOURCE_MAP / CAMPAIGN_OPTIONS / CONTENT_OPTIONS, sourced from the spreadsheet's own lookup tabs — swap point for rule data
+js/rulesOverrides.js     Merges admin-added values (from /api/rules-overrides) on top of js/rules.js's static lists — what the builder actually imports for Campaign/Source/Content
 js/generator.js          UTM construction + per-row evaluation (required fields, defensive re-validation, duplicates)
 js/dataAccess.js         list()/append() interface — swap point for the real backend
 js/app.js                Builder page wiring: row table, cascading selects, fill-down, bulk-add, confirmation dialog
 js/shared-app.js         Shared view wiring: load, filter, CSV export
+js/admin-app.js          Admin page wiring: add/remove overrides, calls /admin/api/rules
 js/utils.js              escapeHtml, CSV encoding, clipboard, file download, id generation
-functions/api/utms.js    Cloudflare Pages Function: GET/POST against KV (only used when BACKEND = 'cloudflare')
-wrangler.toml            KV namespace binding
+functions/api/utms.js            Cloudflare Pages Function: GET/POST against KV (only used when BACKEND = 'cloudflare')
+functions/api/rules-overrides.js Public GET of admin-added values (no auth — every visitor's dropdowns need this)
+functions/admin/api/rules.js     GET/POST/DELETE of admin-added values, gated behind Cloudflare Access on /admin* — see "Admin" below
+wrangler.toml            KV namespace binding (reused by both the shared-view records and the rule overrides, under different keys)
 tests/e2e.mjs            Playwright script exercising every Phase 4 test case below (dev-only, not deployed)
 .github/workflows/deploy.yml   Auto-deploys to Cloudflare Pages on every push to main
 ```
+
+## Admin: promoting "Other" values to permanent options
+
+Every "Other" field (Campaign, Source, Campaign Content) lets anyone type a
+new value on the spot, but it never becomes a real dropdown option — the
+next person hits "Other" again for the same recurring affiliate/campaign.
+`/admin` fixes that: an approved admin picks the value once, and it's
+permanently offered to everyone from then on.
+
+**Access control: Cloudflare Access, not a password.** `/admin` (the page)
+and `/admin/api/rules` (the write endpoint it calls) both sit behind a
+Cloudflare Access application. Approved people sign in with their
+`@port.ac.uk` email and a one-time PIN — no new credentials to manage, and
+who's approved lives entirely in the Cloudflare Zero Trust dashboard, not
+in this codebase. `functions/admin/api/rules.js` checks for the
+`Cf-Access-Authenticated-User-Email` header Access injects on every request
+that passes its login policy; Cloudflare strips any client-supplied header
+of that name at the edge, so it can't be spoofed by hitting the API
+directly — as long as `/admin*` stays covered by an Access policy. Reading
+the current override list (`functions/api/rules-overrides.js`, used by
+every visitor's builder page to merge these values into its dropdowns) is
+deliberately **not** behind Access — only *adding or removing* a value is.
+
+### One-time setup (Cloudflare Zero Trust dashboard, ~10 minutes)
+
+1. Cloudflare dashboard → **Zero Trust** → (first visit prompts you to pick
+   a team name — any name works, it's just a URL slug).
+2. **Access → Applications → Add an application → Self-hosted.**
+3. Application domain: your Pages domain (e.g.
+   `utm-builder-608.pages.dev`), path `/admin*`. This one application
+   covers both the `/admin` page and every `/admin/api/*` call it makes.
+4. **Identity providers**: leave "One-time PIN" enabled (it's on by
+   default) — no extra IdP setup needed for email+PIN login.
+5. **Policies → Create a policy**: Action = Allow. Add a rule matching
+   **Emails** (list specific `@port.ac.uk` addresses for named admins) or
+   **Emails ending in** `@port.ac.uk` (anyone with a university email) —
+   whichever matches who should be approved. This list is the actual
+   authorization boundary; edit it here any time, no deploy needed.
+6. Save. Visiting `/admin` now prompts for an email + PIN before the page
+   loads at all.
+
+Free Zero Trust plan covers up to 50 users, more than enough for this.
+
+### Storage
+
+Admin-added values live in the same `UTM_RECORDS` KV namespace as the
+shared view, under a separate key (`rules-overrides`) — no second
+namespace to create. Each entry records `value`, `addedBy` (the Access
+email) and `addedAt`. `/api/rules-overrides` (public) strips `addedBy` out
+before returning data, so visitor dropdowns never expose staff email
+addresses.
+
+### Not covered
+
+- The existing Playwright suite (`tests/e2e.mjs`) runs against a plain
+  static server with no Functions runtime, so it can't exercise
+  `/admin` or the rule-override endpoints — verifying those needs
+  `wrangler pages dev` (which proxies Functions but has no real Access
+  session) or the live deployment. Manually verified against mocked
+  responses instead (page renders the unauthorized state correctly with no
+  backend; add/remove/merge-into-builder-dropdowns all work against a
+  simulated authenticated session).
+- No CSRF hardening beyond Cloudflare Access's own session cookie — an
+  accepted risk for a small internal admin tool, not a public-facing
+  write surface.
+- Medium→Term pairs aren't admin-addable, only Campaign/Source/Content
+  (the three fields that already have an "Other" escape hatch). Could be
+  extended the same way if a new Medium/Term combination is ever needed.
 
 ## Validation rules — sourced directly from the spreadsheet's own lookup tabs
 
