@@ -1,22 +1,15 @@
 /**
- * Validation rule data, derived from the real UTM tracker export
- * ("JW__CSV_of_UTM_SheetCopy__Paste_of_UTM_Tracker.csv" — 8,509 usable
- * historical rows out of 8,565, after dropping incomplete "Please complete
- * all fields" placeholder rows).
+ * Validation rule data. Originally reverse-engineered from historical
+ * *usage* in the main tracker export, which under-represents what the
+ * three named lookup tabs (Term Source, Default Medium – Term, Campaign
+ * name/GA4 medium/content) actually *permit* — several valid combinations
+ * were simply never used in the 8,509 real rows sampled. Corrections below
+ * are being folded in as the real tabs are checked directly; see README
+ * "Validation rules" for exactly what's confirmed-real vs. still interim.
  *
- * The three named lookup tabs (Term Source, Default Medium – Term,
- * Campaign name/GA4 medium/content) were not supplied directly — this data
- * is reverse-engineered from actual historical usage instead. See the
- * "Validation rules" section of README.md for exactly what was included,
- * excluded as noise, and inferred outright.
- *
- * The core mechanism confirmed against the data: Campaign Term names are
- * themselves prefixed "paid-" or "organic-" (e.g. "organic-email",
- * "paid-search") — that prefix is what carries the Paid/Organic meaning.
- * There is no separate Paid/Organic input anywhere in this tool; it is
- * never selected and never gates anything. Where a Paid/Organic label is
- * useful (the shared view's filter), it's derived straight from whichever
- * Term was picked, via derivePaidOrganic() below.
+ * Campaign Term names are themselves prefixed "paid-" or "organic-" (e.g.
+ * "organic-email", "paid-search") — that prefix carries the Paid/Organic
+ * meaning. There is no separate Paid/Organic input anywhere in this tool.
  */
 
 // medium -> [terms], the full set actually used with that medium
@@ -45,7 +38,7 @@ export const TERM_SOURCE_MAP = {
   'organic-social': ['instagram', 'linkedin', 'facebook', 'twitter', 'unibuddy', 'linktree', 'tiktok', 'the-student-room', 'direct-message', 'you-tube', 'discord', 'staff-share'],
   'paid-social': ['meta', 'tiktok', 'linkedin', 'facebook-and-instagram', 'facebook', 'snapchat', 'unicompare', 'idp', 'instagram', 'prospects', 'studyportals', 'quantcast'],
   'paid-search': ['google', 'bing', 'performance-max', 'pmax', 'demand-gen', 'chatgpt'],
-  'paid-display': ['idp', 'pmax', 'quantcast', 'studyportals', 'demand-gen', 'picnic', 'NHS_app', 'programmatic', 'unicompare', 'uni_open_days', 'uni-frog', 'pearson', 'ucas', 'fone-media', 'amazon', 'open-days-com', 'google', 'cohort', 'findamasters'],
+  'paid-display': ['idp', 'pmax', 'quantcast', 'studyportals', 'demand-gen', 'picnic', 'NHS_app', 'programmatic', 'unicompare', 'uni_open_days', 'uni-frog', 'pearson', 'ucas', 'fone-media', 'amazon', 'open-days-com', 'google', 'cohort', 'findamasters', 'bbc-history', 'complete-university-guide', 'give-with', 'spotify', 'study-international', 'the-student-room', 'what-uni'],
   'paid-video': ['you-tube', 'itvx', 'disney', 'prime'],
   'performance-max': ['pmax'],
   'paid-3rd-party-website': ['masterscompare', 'Thinkpostgrad', 'complete-university-guide', 'whatuni-cug', 'uni-frog', 'findamasters', 'prospects', 'unicompare', 'findaphd', 'uni-taster-days', 'postgraduatestudentships', 'idp', 'postgraduatesearch', 'open-days-com', 'postgrad-com', 'what-uni', 'idp-hotcourses', 'jobs-ac-uk', 'study-international', 'Coursefindr', 'masters-portal', 'uk-uni-search', 'Politics-Home', 'study-portals', 'biomedical-scientist', 'ucas'],
@@ -69,430 +62,38 @@ export const TERM_SOURCE_MAP = {
   'paid-audio': ['radio', 'spotify'],
 };
 
-// "campaign (lowercased) | medium" -> [...content values], most-used first,
-// capped at 25 per pair (a handful of very active campaign/medium pairs had
-// 100+ distinct values — e.g. ug2026-clearing + ppc had 117 — capped to
-// bound dropdown length and bundle size; the cap only drops long-tail rare
-// values, not the common ones). Derived from the same historical export as
-// everything else here — mirrors the "Campaign name, GA4 medium, content"
-// tab's structure of gating Content by (Campaign, Medium) together.
-export const CAMPAIGN_MEDIUM_CONTENT_MAP = {
-  "alumni-birthday-card|email": ["alumni-birthday-card"],
-  "alumni-blogs|email": ["newsletter", "blog"],
-  "alumni-blogs|social": ["blog"],
-  "alumni-emails|email": ["newsletter", "postgraduate-taught", "referral-awards", "open-day", "academic-121", "teaching", "update-details", "careers-and-employability"],
-  "alumni-event|email": ["newsletter", "postgrad-open-event"],
-  "alumni-fast-track|email": ["alumni-fasttrack-promo"],
-  "alumni-fundraising-futures-fund|social": ["future"],
-  "alumni-graduation|print": ["welcome", "graduation", "alumni-graduation"],
-  "alumni-graduation|social": ["welcome"],
-  "alumni-postgraduate-promo|email": ["alumni-postgraduate-promo", "newsletter"],
-  "alumni-postgraduate-promo|social": ["postgrad-open-event", "alumni-postgraduate-promo"],
-  "alumni-uop-social|social": ["news-story", "event-listing", "global-week", "alumni-graduation", "research-innovation", "blog", "graduation", "careers-and-employability", "alumni-update-your-details here", "update-details", "postgrad-open-event"],
-  "alumni-update-details|email": ["update-details", "alumni-update-your-details here"],
-  "alumni-update-details|organic": ["1-week"],
-  "alumni-update-details|print": ["alumni-update-your-details here"],
-  "bal-current-students|print": ["student-support"],
-  "bal-socials|email": ["da-awareness"],
-  "bal-socials|print": ["facilities"],
-  "bal-socials|social": ["student-life", "explore-our-projects", "course-llb-hons-law-with-legal-practice", "open-day", "global-week", "estates-and-campus", "blog", "assessments", "student-support", "facilities", "flexible-study", "accommodation", "careers-and-employability"],
-  "bal-socials|video": ["uop-general", "applicant-experience-day"],
-  "brand-uop|email": ["postgrad-open-event", "funding-advert", "flexible-study"],
-  "brand-uop|ppc": ["student-life", "postgrad-open-event"],
-  "brand-uop|print": ["teaching"],
-  "brand-uop|video": ["island-city"],
-  "brand-uop-pfc|email": ["open-day", "clearing"],
-  "brand-uop-pfc|social": ["open-day"],
-  "brand-uop-solve|email": ["research-innovation"],
-  "degree-guides|print": ["courses-pg", "how-to-apply", "postgraduate-research", "campus-tours", "fees-and-finance", "research-subject-areas", "virtual-experience", "postgrad-open-event", "flexible-study", "student-support", "accommodation", "sport", "open-day", "careers-and-employability", "blog", "course-pgce-courses", "personal-statement", "student-life", "island-city", "find-a-phd- supervisor", "funding-your-research-degree", "scholarships-and-bursaries", "explore-our-projects"],
-  "e17-degree|affiliate": ["scholarships-and-bursaries"],
-  "global-partner|affiliate": ["scholarships-and-bursaries", "why-portsmouth"],
-  "global2023-uop-jan-start|ppc": ["jan-starts"],
-  "global2023-uop-jan-start|push": ["jan-starts"],
-  "global2023-uop-main-cycle|ppc": ["student-support", "location", "student-life"],
-  "global2024-uop-jan-start|ppc": ["jan-starts"],
-  "global2024-uop-main-cycle|affiliate": ["choosing-a-uni"],
-  "global2024-uop-main-cycle|email": ["global-email 6-support", "global-email 2-why-port", "global-email 3-the-city", "global-email 5-careers", "global-email 4-accommodation", "global-email 7-student-life", "global-email 1-ug-courses", "global-email 1-pg-courses"],
-  "global2025-hss|print": ["course-ba-education-studies", "course-ma-education-studies", "course-msc-educational-leadership-and-management", "course-ba-hons-international-business-communication"],
-  "global2025-uop-main-cycle|affiliate": ["facilities", "connected-degrees", "teaching", "estates-and-campus", "how-to-apply", "accommodation", "scholarships-and-bursaries", "careers-and-employability"],
-  "global2025-uop-main-cycle|email": ["global-email 6-support", "global-email 2-why-port", "global-email 3-the-city", "global-email 5-careers", "global-email 4-accommodation", "global-email 7-student-life", "global-email 1-ug-courses", "global-email 1-pg-courses", "awareness"],
-  "global2025-uop-main-cycle|ppc": ["postgraduate-taught", "undergraduate"],
-  "global2026-hss|email": ["awareness"],
-  "global2026-hss|ppc": ["courses-pg"],
-  "global2026-uop-jan-start|email": ["postgraduate-taught"],
-  "global2026-uop-jan-start|ppc": ["postgraduate-taught"],
-  "global2026-uop-main-cycle|email": ["global-email 3-the-city", "global-email 7-student-life", "global-email 4-accommodation", "global-email 5-careers", "global-email 2-why-port", "global-email 6-support", "global-email 1-ug-courses", "global-email 1-pg-courses", "postgraduate-taught"],
-  "global2026-uop-main-cycle|ppc": ["undergraduate", "postgraduate-taught", "international-students"],
-  "global2026-uop-may-start|email": ["postgraduate-taught"],
-  "global2026-uop-may-start|ppc": ["postgraduate-taught"],
-  "hss-socials|social": ["news-story", "blog", "placements", "topical", "1-day", "preparing-for-uni", "choosing-a-uni", "course-pgce-courses", "research-innovation", "student-support", "course-bsc-hons-criminology-with-psychology", "course-ba-hons-international-relations", "course-msc-cybercrime", "open-day", "graduation", "course-ba-hons-international-development", "postgraduate-research", "4-weeks", "postgrad-open-event", "taster-days", "crime", "awareness"],
-  "innovation-connect|ppc": ["awareness", "products-and-services", "locations-and-facilities", "work-with-us", "business-support"],
-  "internal-comms-staff|affiliate": ["student-life"],
-  "internal-comms-staff|email": ["newsletter", "research-innovation", "news-story", "edi", "staff-hr", "estates-and-campus", "staff-events", "staff-is", "civic", "student-support", "teaching", "facilities", "graduation", "staff-development", "blog", "space", "student-life", "portsmouth-football-club", "sustainability", "sport", "sport-events", "welcome", "plastic-pollution", "wellbeing", "careers-and-employability"],
-  "internal-comms-staff|organic": ["facilities"],
-  "internal-comms-staff|social": ["staff-events"],
-  "internal-comms-student|email": ["newsletter", "student-life", "student-support", "welcome", "wellbeing", "careers-and-employability", "news-story", "estates-and-campus", "assessments", "sport", "facilities", "benefits-offers", "edi", "graduation", "research-innovation", "blog", "sport-events", "global-week", "civic", "da-awareness", "postgraduate-research", "finance", "space", "revision"],
-  "internal-comms-student|social": ["student-life", "student-support", "sport-events", "blog", "research-subject-areas", "news-story", "learn-a-foreign-language", "graduation"],
-  "internal-comms-student-welcome-2024|email": ["home-students", "home-distance-learners", "international-students"],
-  "new-course|affiliate": ["new-course"],
-  "new-course|social": ["new-course-pg"],
-  "pg2023-cci|ppc": ["priority-courses-ec"],
-  "pg2023-hss|email": ["postgraduate-taught"],
-  "pg2023-hss|ppc": ["course-mpa-public-administration", "course-mpa-public-administration-degree-apprenticeship", "course-ma-victorian-gothic-history-literature-and-culture"],
-  "pg2023-hss|social": ["course-certed-further-education-and-training", "pg-open-evening"],
-  "pg2023-sah|print": ["course-msc-advanced-aesthetic-and-restorative-dentistry-top-up"],
-  "pg2023-tec|social": ["courses-pg"],
-  "pg2023-uop|email": ["postgraduate-research", "postgraduate-taught", "scholarships-and-bursaries"],
-  "pg2023-uop-jan-start|affiliate": ["funding-advert", "jan-starts", "scholarships-and-bursaries", "mpu"],
-  "pg2023-uop-jan-start|ppc": ["jan-starts", "scholarships-and-bursaries"],
-  "pg2023-uop-main-cycle|email": ["flexible-study", "blog"],
-  "pg2023-uop-main-cycle|ppc": ["flexible-study"],
-  "pg2023-uop-main-cycle|video": ["pg-open-evening"],
-  "pg2023-uop-open-eve|email": ["1-day"],
-  "pg2023-uop-open-eve|social": ["ceg-postgrad-open-event"],
-  "pg2023-uop-open-eve|video": ["open-day"],
-  "pg2023-uop-pgr|email": ["student-support", "fees-and-finance", "location", "blog"],
-  "pg2023-uop-pgr|ppc": ["postgraduate-research"],
-  "pg2023-uop-pgr|print": ["course-pgce-courses"],
-  "pg2023-uop-pgr-bursaries|affiliate": ["phd-bursary", "course-pgr-physics", "course-pgr-economics", "postgraduate-research-how-to-apply"],
-  "pg2024-alumni-uop-open-eve|email": ["pg-open-evening"],
-  "pg2024-alumni-uop-open-eve|social": ["pg-open-evening"],
-  "pg2024-bal|email": ["course-msc-finance"],
-  "pg2024-bal|print": ["pg-open-evening", "mba-global", "msc-digital-economy", "msc-fintech"],
-  "pg2024-bal|social": ["postgraduate-taught", "pg-webinar-series", "pg-open-evening"],
-  "pg2024-hss|affiliate": ["postgraduate-taught", "course-ma-naval-history"],
-  "pg2024-hss|email": ["course-pgce-courses", "pg-webinar-series"],
-  "pg2024-hss|ppc": ["courses-pg", "course-msc-cybercrime", "course-ma-victorian-gothic-history-literature-and-culture"],
-  "pg2024-hss|print": ["course-pgce-courses", "course-msc-economic-crime", "course-msc-criminal-psychology", "course-msc-forensic-investigation", "course-msc-cybercrime", "course-msc-international-criminal-justice", "course-ma-naval-history", "course-ma-business-communication-for-international-leadership", "course-ma-education-studies", "course-msc-educational-leadership-and-management", "course-dsyrm-professional-doctorate-in-security-risk-management", "course-dcrimj-professional-doctorate-in-criminal-justice", "subject-knowledge-enhancement", "course-msc-criminal-justice", "course-msc-security-management", "courses-pg", "course-msc-cybercrime-terrorism-and-security", "course-ma-international-relations", "course-ma-international-relations-and-politics", "course-pgce-primary", "course-ma-translation-studies"],
-  "pg2024-hss|social": ["pg-webinar-series", "course-pgce-courses"],
-  "pg2024-hss|video": ["course-pgce-courses", "course-mpa-public-administration", "course-mpa-public-administration-degree-apprenticeship", "course-ma-naval-history", "subject-knowledge-enhancement", "course-edd-professional-doctorate-in-education"],
-  "pg2024-sah|affiliate": ["postgraduate-taught"],
-  "pg2024-uop|affiliate": ["audience-extension-banners", "newsletter", "qr-code"],
-  "pg2024-uop|email": ["funded-phd", "jan-starts"],
-  "pg2024-uop|ppc": ["da-awareness", "course-msc-digital-business-management", "course-msc-economics-finance-and-banking", "course-msc-international-business-and-management", "course-msc-artificial-intelligence-and-machine-learning", "course-msc-biomedical-engineering", "course-msc-real-estate-management", "postgraduate-taught", "courses-pg", "pg-webinar-series"],
-  "pg2024-uop|print": ["courses-pg", "how-to-apply", "postgrad-open-event"],
-  "pg2024-uop-bursaries|social": ["phd-bursary"],
-  "pg2024-uop-jan-start|affiliate": ["jan-starts"],
-  "pg2024-uop-jan-start|ppc": ["courses-pg", "jan-starts", "postgraduate-taught"],
-  "pg2024-uop-main-cycle|affiliate": ["postgraduate-taught", "scholarships-and-bursaries", "prospectus", "postgrad-open-event", "funding-advert", "virtual_pg_open_event", "contact-us", "postgraduate-research", "postgraduate-research-how-to-apply", "student-life", "how-to-apply", "virtual-experience", "jan-starts", "courses-pg", "distance-learning", "funding-your-research-degree", "fees-and-finance"],
-  "pg2024-uop-main-cycle|email": ["postgrad-open-event-invite", "postgrad-open-event", "ceg-postgrad-open-event"],
-  "pg2024-uop-main-cycle|ppc": ["postgraduate-taught", "flexible-study", "postgrad-open-event", "courses-pg", "reasons-to-do-a-masters", "postgraduate-research"],
-  "pg2024-uop-main-cycle|print": ["courses-pg"],
-  "pg2024-uop-main-cycle|push": ["virtual_pg_open_event"],
-  "pg2024-uop-main-cycle|social": ["virtual_pg_open_event"],
-  "pg2024-uop-open-eve|affiliate": ["pg-webinar-series", "postgrad-open-event", "pg-open-evening"],
-  "pg2024-uop-open-eve|email": ["postgrad-open-event"],
-  "pg2024-uop-open-eve|ppc": ["pg-open-evening", "postgrad-open-event", "choosing-a-uni", "scholarships-and-bursaries", "postgraduate-research", "pg-webinar-series"],
-  "pg2024-uop-open-eve|push": ["postgrad-open-event"],
-  "pg2024-uop-open-eve|social": ["pg-open-evening"],
-  "pg2024-uop-pgr|affiliate": ["funding-advert", "postgraduate-research"],
-  "pg2024-uop-pgr|print": ["courses-pg", "how-to-apply", "postgrad-open-event"],
-  "pg2024-uop-pgr-bursaries|affiliate": ["phd-bursary", "research-innovation", "course-pgr-psychology", "course-pgr-earth-and-environmental-sciences", "course-pgr-physical-and-human-geography", "course-pgr-pharmacy-pharmacology-and-biomedical-sciences", "course-pgr-biological-sciences", "course-pgr-economics", "course-pgr-criminology", "course-pgr-politics-and-international-relations", "course-pgr-architecture-interiors-and-urbanism", "course-pgr-area-studies", "course-pgr-art-and-design", "audience-extension-banners", "course-pgr-sport-and-exercise-science", "course-pgr-business-and-management", "course-pgr-law", "course-pgr-operational-research-and-logistics", "course-pgr-education", "course-pgr-sociology", "course-pgr-energy-engineering"],
-  "pg2024-uop-pgr-bursaries|email": ["phd-bursary"],
-  "pg2024-uop-pgr-bursaries|social": ["phd-bursary"],
-  "pg2025|affiliate": ["courses-pg", "fees-and-finance", "open-day", "prospectus", "postgraduate-research", "contact-us", "research-subject-areas", "open-day-may", "open-day-jul", "qr-code", "how-to-apply", "reasons-to-do-a-masters", "funding-advert", "island-city", "open-day-feb", "open-day-mar", "scholarships-and-bursaries", "explore-our-projects", "find-a-phd- supervisor", "blog", "course-listing"],
-  "pg2025|email": ["fast-track", "email10-campus", "email3-campus", "pg-open-evening", "how-to-apply", "email12-sport", "email4-121", "email1-funding", "email8-research", "virtual_pg_open_event", "open-day", "email1-community", "email2-course", "email2-faculty", "email3-funding", "email5-apply", "email2-support", "email3-DL", "email5-community", "email6-course-faculty", "email7-support", "email9-careers", "email11-SU", "email13-ask", "virtual-experience"],
-  "pg2025|ppc": ["postgrad-open-event", "career-progressors", "website-retargetting", "career-upskillers"],
-  "pg2025|print": ["course-ma-applied-linguistics-and-tesol", "course-ma-business-communication-for-international-leadership", "course-msc-international-criminal-justice", "postgrad-open-event", "course-ma-translation-studies", "course-msc-international-development", "course-ma-international-relations", "course-ma-naval-history", "course-ma-victorian-gothic-history-literature-and-culture", "course-mres-humanities-and-social-sciences", "course-mpa-public-administration", "course-msc-victimology", "course-msc-criminal-psychology", "course-msc-cybercrime", "course-msc-intelligence", "course-msc-security-management", "course-msc-economic-crime", "course-msc-forensic-investigation", "course-dcrimj-professional-doctorate-in-criminal-justice", "course-ma-education-studies", "course-msc-educational-leadership-and-management", "course-pgce-further-education-and-training", "course-pgce-primary", "course-pgce-courses", "course-edd-professional-doctorate-in-education"],
-  "pg2025|referral": ["virtual_pg_open_event", "campus_pg_open_event"],
-  "pg2025|sms": ["fast-track"],
-  "pg2025|video": ["course-msc-biotechnology", "course-msc-clinical-exercise-science", "course-msc-crisis-and-disaster-management", "course-msc-sport-and-exercise-psychology", "ceg-postgrad-open-event", "graduation"],
-  "pg2025-bal|print": ["course-msc-risk-crisis-and-resilience-management", "course-msc-digital-business-management", "course-msc-project-management", "course-msc-leadership-and-management-top-up", "course-pgdip-human-resource-development-and-training-management", "course-msc-innovation-management-and-entrepreneurship"],
-  "pg2025-cci|affiliate": ["course-listing", "mpu", "display"],
-  "pg2025-cci|email": ["sept-start"],
-  "pg2025-cci|ppc": ["newsfeedad1", "newsfeedad2", "new-course"],
-  "pg2025-hss|affiliate": ["course-listing", "mpu", "display"],
-  "pg2025-hss|email": ["sept-start"],
-  "pg2025-hss|print": ["scholarships-and-bursaries", "postgrad-open-event"],
-  "pg2025-sah|affiliate": ["course-listing", "display", "mpu"],
-  "pg2025-sah|email": ["sept-start"],
-  "pg2025-sah|print": ["course-msc-medical-biotechnology", "course-mn-nursing-adult", "course-msc-digital-dentistry-top-up", "course-advanced-restorative-dental-therapy-top-up", "course-msc-applied-aquatic-biology", "course-msc-sports-performance", "course-msc-clinical-exercise-physiology", "course-msc-coastal-and-marine-resource-management", "course-pgcert-conscious-sedation-for-dentistry", "course-msc-crisis-and-disaster-management", "course-msc-engineering-geology", "course-msc-forensic-psychology", "course-msc-geographical-information-systems", "course-mbbs-medicine-graduate-entry", "course-msc-health-psychology", "course-pgcert-independent-prescribing-for-pharmacists", "course-mn-nursing-mental-health", "course-msc-physiotherapy-pre-registration", "course-prescribing-for-nurses", "course-msc-psychology-and-learning-disability", "course-mres-science-and-health", "course-msc-sport-and-exercise-psychology", "course-msc-sports-management", "course-msc-strength-conditioning-and-rehabilitation"],
-  "pg2025-uop|email": ["Gov-loans", "Talk-to-me-about-pg", "fast-track", "alumni-discount", "open-day", "funded-phd", "careers-and-employability"],
-  "pg2025-uop|ppc": ["sept-start", "open-day", "fast-track"],
-  "pg2025-uop-fast-track|email": ["pg-open-evening", "how-to-apply"],
-  "pg2025-uop-main-cycle|ppc": ["postgrad-open-event"],
-  "pg2025-uop-main-cycle|sms": ["how-to-apply"],
-  "pg2025-uop-open-eve|affiliate": ["postgrad-open-event"],
-  "pg2025-uop-open-eve|email": ["postgrad-open-event"],
-  "pg2025-uop-open-eve|ppc": ["postgrad-open-event"],
-  "pg2025-uop-pgr|email": ["pgr-webinar", "postgraduate-research", "pg-webinar-series"],
-  "pg2025-uop-pgr|ppc": ["postgraduate-research", "professional-doctorates", "flexible-phd", "explore-our-projects", "find-a-phd- supervisor"],
-  "pg2025-uop-pgr|social": ["pgr-webinar"],
-  "pg2025-uop-pgr-bursaries|affiliate": ["phd-bursary", "research-innovation", "scdtp-bursary", "audience-extension-banners"],
-  "pg2025-uop-pgr-bursaries|email": ["phd-bursary", "research-innovation"],
-  "pg2026|affiliate": ["uopl", "course-msc-project-management", "course-msc-marketing", "event-listing", "course-msc-construction-project-management", "course-msc-accounting-and-finance", "scholarships-and-bursaries", "course-listing", "display", "course-ma-digital-marketing", "course-msc-engineering-management", "course-msc-information-systems", "course-msc-international-business-and-management", "course-msc-computer-science", "course-msc-business-analytics", "course-mba", "course-mba-strategic-leadership", "course-mba-educational-leadership", "course-msc-digital-marketing", "contact-us", "mpu", "course-lpc-premasters", "website-retargetting", "prospectus", "courses-pg"],
-  "pg2026|email": ["email4", "email3-funding", "email-2", "postgrad-open-event", "pg-open-day", "instant-response", "fast-track", "virtual_pg_open_event", "uopl"],
-  "pg2026|ppc": ["postgrad-open-event", "sept-start-generic-ec", "virtual_pg_open_event", "pg-open-day-retargeting", "jan-starts", "pg-open-day-progressor", "pg-open-day-upskiller", "lead-gen", "pg-open-day", "sept-start-v1-ec", "sept-start-v2-ec", "new-course", "group1", "group2", "in-feed", "display", "website-retargetting", "brand", "virtual-pg-od-retargeting", "virtual-pg-od-21", "virtual-pg-od-36", "sept-start-RUK-ec", "sept-start-comp-ec", "sept-start-AI-ec", "sept-start-pmax-ec"],
-  "pg2026|print": ["postgrad-open-event", "pg-open-day", "prospectus", "course-msc-educational-leadership-and-management", "jan-starts", "virtual_pg_open_event", "uopl", "how-to-apply", "sept-start", "fast-track"],
-  "pg2026|referral": ["prospectus"],
-  "pg2026|sms": ["fast-track", "postgrad-open-event", "virtual_pg_open_event", "virtual_pg_open_event_2", "3-days-before", "day-of"],
-  "pg2026|video": ["pg-open-day", "postgrad-open-event", "how-to-apply", "virtual_pg_open_event", "graduation"],
-  "pg2026-bal|affiliate": ["featured-uni", "sept-start"],
-  "pg2026-bal|email": ["solus-email"],
-  "pg2026-bal|ppc": ["priority-courses-ec", "course-executive-mba"],
-  "pg2026-cci|affiliate": ["featured-uni", "sept-start"],
-  "pg2026-cci|ppc": ["priority-courses-ec"],
-  "pg2026-hss|affiliate": ["featured-uni", "sept-start"],
-  "pg2026-hss|ppc": ["priority-courses-ec", "course-mpa-public-administration", "course-pgce-courses", "course-msc-sociology", "course-dcrimj-professional-doctorate-in-criminal-justice", "course-dsyrm-professional-doctorate-in-security-risk-management", "course-ma-victorian-gothic-history-literature-and-culture", "course-ma-naval-history"],
-  "pg2026-hss|print": ["course-pgce-courses", "course-edd-professional-doctorate-in-education", "courses-pg"],
-  "pg2026-sah|affiliate": ["featured-uni", "sept-start"],
-  "pg2026-sah|email": ["solus-email"],
-  "pg2026-sah|ppc": ["priority-courses-ec"],
-  "pg2026-tec|ppc": ["priority-courses-ec"],
-  "pg2026-uop|affiliate": ["courses-pg", "pg-open-day", "postgrad-open-event", "contact-us", "fees-and-finance", "virtual-experience", "prospectus", "research-subject-areas", "postgraduate-3rd-party-profile", "open-day", "student-life", "how-to-apply", "autumn-open-day", "scholarships-and-bursaries", "postgraduate-taught"],
-  "pg2026-uop|email": ["pg-open-day", "virtual_pg_open_event_on_demand"],
-  "pg2026-uop|ppc": ["pg-open-day"],
-  "pg2026-uop|print": ["pg-open-day"],
-  "pg2026-uop-pgr|affiliate": ["postgraduate-3rd-party-profile", "pgr-webinar"],
-  "pg2026-uop-pgr|email": ["pg-webinar-series", "email4"],
-  "pg2026-uop-pgr|print": ["pg-open-day", "research-subject-areas"],
-  "pg2026-uop-pgr|social": ["pg-webinar-series"],
-  "pg2026-uop-pgr-bursaries|affiliate": ["phd-bursary", "research-innovation", "pres-2025", "scdtp-bursary", "funded-phd", "pgr-webinar", "newsletter"],
-  "pg2026-uop-pgr-bursaries|email": ["phd-bursary", "pres-2025", "research-innovation", "pgr-webinar"],
-  "pg2026-uop-pgr-bursaries|social": ["phd-bursary"],
-  "pg2027|email": ["courses-pg"],
-  "pg2027|print": ["pgt-mini-guide"],
-  "plastics-policy|affiliate": ["plastic"],
-  "rao-post16-bal|affiliate": ["bal-taster-days"],
-  "rao-post16-bal|email": ["newsletter"],
-  "rao-post16-bal|organic": ["taster-days"],
-  "rao-post16-cci|email": ["newsletter", "open-day", "personal-statement"],
-  "rao-post16-cci|organic": ["taster-days"],
-  "rao-post16-cci|referral": ["taster-days", "1-day"],
-  "rao-post16-hss|email": ["newsletter"],
-  "rao-post16-hss|organic": ["taster-days"],
-  "rao-post16-hss|referral": ["1-day"],
-  "rao-post16-sah|email": ["newsletter", "environmental-taster-day"],
-  "rao-post16-teachers-and-advisers|email": ["getting-started", "he-advisers-conference-2026", "news-story", "clearing-webinar", "blog", "open-day", "connected-degrees", "priority-clearing-sign-up", "courses-ug", "he-advisers-conference-2023", "ucas-references", "bal-taster-days", "he-advisers-conference-2024", "he-advisers-conference-2025", "ucas-extra", "summer-open-day", "taster-days", "priority-clearing-affordability", "clearing", "ucas-points-calculator", "clearing-live-chat", "personal-statement", "autumn-open-day"],
-  "rao-post16-teachers-and-advisers|social": ["he-advisers-conference-2024"],
-  "rao-post16-tec|organic": ["taster-days"],
-  "rao-post16-tec|referral": ["1-day"],
-  "rao-post16-uop|affiliate": ["subject-webinar", "taster-days", "school-leavers-hub", "open-experience-day", "getting-started"],
-  "rao-post16-uop|email": ["priority-clearing-sign-up", "clearing-webinar", "blog", "open-experience-day", "subject-webinar"],
-  "rao-post16-uop|print": ["getting-started", "clearing-webinar", "priority-clearing-sign-up"],
-  "rao-post16-uop|push": ["sun-digest-email"],
-  "rao-post16-uop|referral": ["taster-days"],
-  "rao-post16-uop|sms": ["open-day", "virtual-experience"],
-  "rao-post16-uop-getting-started|affiliate": ["getting-started"],
-  "rao-post16-uop-getting-started|email": ["getting-started", "preparing-for-uni", "ug-nurture9-student-finance"],
-  "rao-post16-uop-getting-started|push": ["sun-digest-email"],
-  "rao-post16-uop-personal-statement-hub|email": ["personal-statement"],
-  "rao-pre16-teachers-and-advisers|email": ["discover-he-days", "so-you-want-to-workshops"],
-  "rao-pre16-uop-nurture|email": ["newsletter"],
-  "rao-teachers-and-advisers|email": ["he-advisers-conference-2025", "getting-started"],
-  "rao-teachers-and-advisers-cpd-hub|affiliate": ["he-advisers-conference-2025"],
-  "rao-teachers-and-advisers-he-advisers-conference|affiliate": ["he-advisers-conference-2026"],
-  "rao-teachers-and-advisers-he-advisers-conference|email": ["he-advisers-conference-2025", "sun-digest-email"],
-  "rao-teachers-and-advisers-he-advisers-conference|print": ["he-advisers-conference-2025"],
-  "rao-teachers-and-advisers-he-advisers-conference|social": ["he-advisers-conference-2026"],
-  "recruitment-awareness|print": ["school-leavers-hub"],
-  "sah-2026|print": ["sahcourses"],
-  "sah-print-2025|affiliate": ["course-bn-hons-nursing-adult"],
-  "sah-print-2025|print": ["sahcourses"],
-  "sah-socials|social": ["courses-ug"],
-  "short-courses|email": ["digital-flyer", "short-courses-and-cpd-missing-persons"],
-  "sport-current-members|email": ["sport-health-memberships"],
-  "sport-prospective-members|email": ["newsletter", "sport", "sport-partnerships"],
-  "sport-prospective-members|organic": ["sport-events"],
-  "sport-prospective-members|ppc": ["sport-health-memberships", "sport"],
-  "sport-prospective-members|print": ["sport-health-memberships", "sport-events", "sport-partnerships"],
-  "study-while-working-da|ppc": ["da-bn-nursing-adult", "da-bsc-paramedic-science", "da-bsc-diagnostic-radiography-medical-imaging", "da-healthcare"],
-  "studying-while-working2023-da|ppc": ["course-pgdip-engineering-competence-distance-learning-degree-apprenticeship", "course-msc-educational-leadership-and-management-degree-apprenticeship", "da-retargeting"],
-  "studying-while-working2023-latw|email": ["latw-awareness"],
-  "studying-while-working2023-latw|ppc": ["latw-awareness", "latw-retargeting"],
-  "studying-while-working2024|print": ["postgrad-open-event"],
-  "studying-while-working2024-da|affiliate": ["courses-ug"],
-  "studying-while-working2024-da|ppc": ["da-retargeting", "flexible-study", "courses-ug", "da-awareness", "course-ba-hons-digital-marketing", "contact-us"],
-  "studying-while-working2024-da|print": ["course-ba-hons-digital-marketing", "courses-pg", "how-to-apply"],
-  "studying-while-working2024-latw|ppc": ["flexible-study", "distance-learning", "latw-awareness", "latw-retargeting", "courses-pg"],
-  "studying-while-working2024-latw|print": ["courses-pg"],
-  "studying-while-working2025-da|ppc": ["da-healthcare", "course-beng-hons-space-systems-engineering", "da-bn-nursing-adult", "da-bsc-diagnostic-radiography-medical-imaging", "da-bsc-paramedic-science", "da-healthcare-inmail"],
-  "ug-ongoing|affiliate": ["courses-ug", "fees-and-finance", "scholarships-and-bursaries", "event-listing", "prospectus", "website-retargetting", "our-area", "our-campus", "student-life", "uop-general", "student-support", "accommodation", "wellbeing", "ug-online-event", "careers-and-employability", "open-experience-day", "open-day-invite", "schools-and-colleges"],
-  "ug-ongoing|email": ["offer-holder", "course-bsc-accounting-and-finance"],
-  "ug-ongoing|referral": ["careers-and-employability", "prospectus", "scholarships-and-bursaries", "teaching", "student-life", "student-support", "research-innovation", "international-students", "open-day", "virtual-experience", "fees-and-finance", "undergraduate"],
-  "ug2023-hss|ppc": ["course-ba-hons-language-studies"],
-  "ug2023-hss|video": ["course-ba-hons-childhood-and-youth-studies-with-psychology", "study-abroad"],
-  "ug2023-sah|email": ["scholarships-and-bursaries"],
-  "ug2023-tec|affiliate": ["courses-ug", "course-bsc-hons-mathematics-with-machine-learning"],
-  "ug2023-tec|ppc": ["display"],
-  "ug2023-tec|print": ["autumn-dec-sat", "course-bsc-hons-quantity-surveying"],
-  "ug2023-tec|video": ["course-bsc-hons-product-design-and-innovation", "course-beng-meng-electronic-engineering", "course-meng-beng-renewable-energy-engineering", "course-beng-meng-mechanical-engineering", "courses-ug"],
-  "ug2023-uop|organic": ["test"],
-  "ug2023-uop|ppc": ["accommodation"],
-  "ug2023-uop-clearing|affiliate": ["clearing"],
-  "ug2023-uop-clearing|email": ["clearing", "courses-ug"],
-  "ug2023-uop-clearing|ppc": ["faculty-ilr-banner", "course-ba-hons-modern-languages", "course-ba-hons-fashion-marketing", "course-ba-hons-post-production-for-film-and-television", "course-ba-hons-screenwriting", "clearing", "course-ba-hons-entrepreneurship-and-business", "course-bsc-hons-earth-science", "course-beng-hons-construction-management", "clearing-applicant", "results-day", "course-ba-hons-media-and-communication-with-foundation-year", "course-bsc-hons-science-with-foundation-year", "course-beng-hons-engineering-and-technology-with-foundation-year", "foundation-year", "course-bsc-hons-criminology-and-criminal-justice", "course-bsc-hons-criminology-and-forensic-studies", "course-ba-hons-history", "course-ba-hons-politics", "course-ba-hons-international-relations", "course-bsc-hons-sociology", "course-ba-hons-childhood-and-youth-studies", "course-ba-hons-early-childhood-studies", "course-ba-hons-english-language-and-linguistics", "course-bed-hons-primary-education-with-qualified-teacher-status"],
-  "ug2023-uop-clearing|referral": ["clearing"],
-  "ug2023-uop-clearing|social": ["clearing"],
-  "ug2023-uop-openday|print": ["course-ba-hons-accounting-with-finance", "course-msc-economics-finance-and-banking", "course-llb-hons-law", "course-ba-hons-marketing", "course-ba-hons-international-business", "course-ba-hons-business-and-management", "course-ba-hons-business-management-and-entrepreneurship", "student-support"],
-  "ug2023-uop-openday|social": ["open-day", "autumn-open-day"],
-  "ug2023-uop-openday-influencers|ppc": ["autumn-open-day"],
-  "ug2024-bal|affiliate": ["course-ba-hons-business-and-management", "course-ba-hons-accounting-with-finance"],
-  "ug2024-bal|email": ["applicant-experience-day", "course-ba-hons-business-and-human-resource-management", "course-ba-hons-international-business", "course-bsc-hons-business-and-supply-chain-management", "course-bsc-econ-hons-economics-finance-and-banking", "course-ba-hons-economics-and-management", "course-ba-hons-business-and-management", "course-llb-hons-law", "course-llb-hons-law-with-legal-practice", "course-llb-hons-law-with-business", "course-llb-hons-law-with-criminology", "course-ba-hons-accounting-with-finance", "course-ba-hons-entrepreneurship-and-business", "course-ba-hons-marketing", "course-ba-hons-digital-marketing", "crime"],
-  "ug2024-bal|ppc": ["course-ba-hons-accounting-with-finance", "course-llb-hons-law", "course-ba-hons-business-and-management", "course-bsc-econ-hons-economics", "course-ba-hons-marketing", "course-ba-hons-international-business", "faculty-ilr-banner", "rtg-dco"],
-  "ug2024-bal|print": ["research-subject-areas", "course-ba-hons-accounting-with-finance", "course-bsc-econ-hons-economics", "course-ba-hons-marketing", "course-ba-hons-business-and-human-resource-management", "course-ba-hons-business-and-management", "course-bsc-hons-business-and-supply-chain-management", "course-ba-hons-digital-marketing", "course-bsc-econ-hons-economics-finance-and-banking", "course-ba-hons-economics-and-management", "course-ba-hons-entrepreneurship-and-business", "course-ba-hons-financial-management", "course-ba-hons-international-business", "course-llb-hons-law", "course-llb-hons-law-with-business", "course-llb-hons-law-with-criminology", "course-llb-hons-law-with-legal-practice"],
-  "ug2024-bal|sms": ["news-story", "applicant-experience-day", "connected-degrees", "ug-nurture8-student-support", "ug-nurture2-why-portsmouth", "student-life"],
-  "ug2024-bal|social": ["applicant-experience-day"],
-  "ug2024-cci|email": ["course-ba-hons-post-production-for-film-and-television", "course-ba-hons-fashion-marketing", "course-ba-hons-theatre", "course-ba-hons-journalism"],
-  "ug2024-cci|ppc": ["course-ba-hons-architecture", "course-bsc-hons-computer-games-production", "course-ba-hons-photography", "course-ba-hons-fashion-and-textile-design", "course-msc-music-technology", "course-ba-hons-musical-theatre", "course-ba-hons-theatre", "course-bsc-hons-music-technology", "course-ba-hons-fashion-design", "faculty-ilr-banner"],
-  "ug2024-cci|print": ["course-bsc-hons-virtual-production", "undergraduate", "course-mpa-public-administration-degree-apprenticeship", "course-ba-hons-animation", "course-ba-hons-architecture", "course-bsc-hons-computer-animation-and-visual-effects", "course-ba-hons-computer-games-art", "course-ba-hons-computer-games-design", "course-bsc-hons-computer-games-production", "course-bsc-hons-computer-games-technology", "course-ba-bsc-hons-creative-computing", "course-bsc-hons-creative-media-technologies", "course-ba-hons-creative-writing", "course-ba-hons-english-and-creative-writing", "course-ba-hons-fashion-design", "course-ma-fashion-marketing", "course-ba-hons-film-production", "course-ba-hons-film-studies", "course-ba-hons-global-communication-and-media-dual-degree", "course-ba-hons-graphic-design", "course-ba-hons-illustration", "course-ba-hons-interior-architecture-and-design", "course-ba-hons-journalism", "course-ba-hons-journalism-with-creative-writing", "course-ba-hons-journalism-with-media-studies"],
-  "ug2024-hss|email": ["digital-flyer", "applicant-experience-day", "crime", "campus-tours", "course-bsc-hons-professional-policing", "course-bed-hons-primary-education-with-qualified-teacher-status", "course-bsc-hons-sociology", "course-ba-hons-applied-languages", "course-bsc-hons-criminology-and-criminal-justice", "course-ba-hons-politics"],
-  "ug2024-hss|ppc": ["jan-deadline", "course-ba-hons-history", "course-bed-hons-primary-education-with-qualified-teacher-status", "course-bsc-hons-sociology", "course-ba-hons-politics", "course-bsc-hons-criminology-and-criminal-justice", "course-bsc-hons-criminology-and-forensic-studies", "faculty-ilr-banner", "course-msc-international-criminal-justice", "rtg-dco"],
-  "ug2024-hss|print": ["course-bsc-hons-criminology-and-criminal-justice-distance-learning", "course-ba-hons-childhood-and-youth-studies", "course-ba-hons-childhood-and-youth-studies-with-criminology", "course-ba-hons-childhood-and-youth-studies-with-psychology", "course-bsc-hons-criminology-and-criminal-justice", "course-bsc-hons-criminology-and-cybercrime", "course-bsc-hons-criminology-and-forensic-studies", "course-bsc-hons-criminology-with-psychology", "course-bsc-hons-counter-terrorism-intelligence-cybercrime-dual-degree", "course-ba-hons-early-childhood-studies", "course-ba-hons-english-language-and-linguistics", "course-ba-hons-english-literature", "course-ba-hons-history", "course-ba-hons-history-with-politics", "course-ba-hons-international-relations", "course-ba-hons-international-relations-and-languages", "course-ba-hons-international-relations-and-politics", "course-ba-hons-modern-languages", "course-ba-hons-politics", "course-bsc-hons-professional-policing", "course-bed-hons-primary-education-with-qualified-teacher-status", "course-bsc-hons-sociology", "course-bsc-hons-sociology-with-criminology", "course-bsc-hons-sociology-with-psychology", "course-ba-hons-international-development"],
-  "ug2024-hss|video": ["uop-general", "course-ba-hons-history", "course-msc-educational-leadership-and-management", "course-ba-hons-modern-languages", "placements", "course-bsc-hons-criminology-and-criminal-justice-distance-learning", "course-bsc-hons-policing-and-investigation", "course-bsc-hons-risk-and-security-management", "course-ba-hons-history-with-politics", "course-ba-hons-early-childhood-studies", "course-ba-hons-childhood-and-youth-studies", "course-ba-hons-childhood-and-youth-studies-with-criminology", "course-ba-hons-international-development", "course-ba-hons-international-development-and-languages", "course-bsc-hons-criminology-with-environmental-justice", "course-ma-applied-linguistics-and-tesol", "course-bed-hons-primary-education-with-qualified-teacher-status", "course-ba-hons-english-literature"],
-  "ug2024-sah|affiliate": ["course-bn-hons-nursing-adult"],
-  "ug2024-sah|email": ["applicant-experience-day", "course-bsc-hons-biochemistry", "course-bsc-hons-geography", "course-bsc-hons-marine-environmental-science", "course-bsc-hons-sport-and-exercise-science", "course-bsc-hons-earth-science", "course-bsc-hons-sport-and-exercise-psychology", "course-bsc-hons-palaeontology", "course-bsc-hons-biomedical-science", "course-bsc-hons-psychology", "course-certhe-dental-nursing", "course-bsc-hons-dental-hygiene", "course-bsc-hons-dental-hygiene-and-dental-therapy", "course-bsc-hons-social-work", "course-bsc-hons-biomedical-science-with-human-biosciences-dual-degree"],
-  "ug2024-sah|ppc": ["course-bsc-hons-biology", "course-bsc-hons-psychology", "course-bsc-hons-sport-and-exercise-science", "faculty-ilr-banner", "course-mpharm-hons-pharmacy", "course-bn-hons-nursing-adult", "course-bn-hons-nursing-mental-health", "display", "jan-deadline", "rtg-dco"],
-  "ug2024-sah|print": ["undergraduate", "course-bsc-hons-advancing-professional-practice-top-up", "course-bsc-hons-biochemistry", "course-bsc-hons-biology", "course-bsc-hons-biomedical-science", "course-bsc-hons-biomedical-science-with-human-biosciences-dual-degree", "course-bsc-hons-dental-hygiene", "course-bsc-hons-dental-hygiene-and-dental-therapy", "course-certhe-dental-nursing", "course-bsc-hons-diagnostic-radiography-and-medical-imaging", "course-bsc-hons-earth-science", "course-bsc-hons-environmental-science", "course-bsc-hons-environmental-science-and-management-dual-degree", "course-bsc-hons-forensic-psychology", "course-ba-hons-geography", "course-bsc-hons-geography", "course-bsc-hons-marine-biology", "course-bsc-hons-marine-environmental-science", "course-bn-hons-nursing-adult", "course-bn-hons-nursing-mental-health", "course-bsc-hons-operating-department-practice", "course-bsc-hons-palaeontology", "course-bsc-hons-paramedic-science", "course-bsc-hons-pharmacology", "course-mpharm-hons-pharmacy"],
-  "ug2024-sah|video": ["uop-general", "course-msc-forensic-psychology"],
-  "ug2024-tec|affiliate": ["course-bsc-hons-mathematics", "course-bsc-hons-mathematics-with-statistics"],
-  "ug2024-tec|email": ["course-bsc-hons-mathematics", "course-bsc-hons-physics"],
-  "ug2024-tec|ppc": ["course-bsc-meng-computer-science", "course-bsc-hons-mathematics", "course-bsc-hons-mathematics-with-machine-learning", "course-bsc-hons-building-surveying", "course-beng-meng-electronic-engineering", "course-beng-meng-mechanical-engineering", "course-bsc-mphys-physics", "course-beng-hons-electronic-engineering", "course-beng-hons-mechanical-engineering", "course-bsc-hons-physics", "rtg-dco"],
-  "ug2024-tec|print": ["open-day", "course-bsc-hons-building-surveying", "course-beng-hons-civil-engineering", "course-bsc-hons-computer-networks", "course-bsc-hons-computer-science", "course-bsc-hons-computing", "course-bsc-hons-construction-management", "course-bsc-hons-cyber-security-and-forensic-computing", "course-bsc-hons-data-science-and-analytics", "course-beng-hons-electronic-engineering", "course-beng-hons-engineering-and-technology-with-foundation-year", "course-bsc-hons-mathematics", "course-bsc-hons-mathematics-for-finance-and-management", "course-bsc-hons-mathematics-with-machine-learning", "course-bsc-hons-mathematics-with-statistics", "course-beng-hons-mechanical-and-manufacturing-engineering", "course-beng-hons-mechanical-engineering", "course-bsc-hons-physics", "course-bsc-hons-physics-astrophysics-and-cosmology", "course-bsc-hons-product-design-and-innovation", "course-bsc-hons-property-development", "course-beng-hons-renewable-energy-engineering", "course-bsc-hons-software-engineering", "autumn-dec-sat"],
-  "ug2024-uop|affiliate": ["teachers-guide"],
-  "ug2024-uop|email": ["student-life", "course-ba-hons-accounting-with-finance", "jan-deadline"],
-  "ug2024-uop|ppc": ["personal-statement", "connected-degrees", "jan-deadline", "ucas-extra", "whatuni-display-refresh"],
-  "ug2024-uop|print": ["finish-your-degree", "exclusive-to-portsmouth"],
-  "ug2024-uop|sms": ["jan-deadline", "june-offer-deadline"],
-  "ug2024-uop-aed|email": ["applicant-experience-day", "invite", "booking-confirmation", "virtual-experience"],
-  "ug2024-uop-aed|print": ["applicant-experience-day", "course-bsc-hons-biology", "course-bsc-hons-social-work", "course-bn-hons-nursing-adult", "course-bn-hons-nursing-mental-health", "course-ba-hons-applied-languages", "course-ba-hons-childhood-and-youth-studies", "course-bsc-hons-criminology-and-criminal-justice", "course-ba-hons-history", "course-ba-hons-international-relations", "course-ba-hons-language-studies", "course-ba-hons-politics", "course-bsc-hons-sociology"],
-  "ug2024-uop-clearing|email": ["clearing", "connected-degrees", "accommodation"],
-  "ug2024-uop-clearing|ppc": ["london-marketing-manager"],
-  "ug2024-uop-influencers|email": ["ucas-process-influencer", "open-day-invite", "news-story", "ug-sms-nurture3-support", "open-day"],
-  "ug2024-uop-main-cycle|email": ["invite"],
-  "ug2024-uop-main-cycle|organic": ["uop-general"],
-  "ug2024-uop-main-cycle|ppc": ["virtual-experience", "personal-statement", "jan-deadline", "summer-open-day", "autumn-open-day", "retargeting-autumn-uod"],
-  "ug2024-uop-main-cycle|print": ["applicant-experience-day"],
-  "ug2024-uop-main-cycle|referral": ["jan-deadline"],
-  "ug2024-uop-main-cycle-influencers|ppc": ["autumn-open-day"],
-  "ug2024-uop-openday|affiliate": ["autumn-open-day"],
-  "ug2024-uop-openday|email": ["summer-open-day", "courses-ug", "location", "ug-nurture5-careers", "student-support", "accommodation", "taster-days"],
-  "ug2024-uop-openday|ppc": ["autumn-open-day", "summer-open-day", "island-city"],
-  "ug2024-uop-openday|print": ["autumn-open-day", "placements", "course-ba-hons-history-with-american-studies"],
-  "ug2024-uop-openday|push": ["summer-open-day", "island-city", "future"],
-  "ug2024-uop-openday|sms": ["summer-open-day", "island-city"],
-  "ug2024-uop-openday|social": ["summer-open-day", "applicant-experience-day", "open-day"],
-  "ug2025-bal|email": ["open-experience-day", "undergraduate"],
-  "ug2025-bal|print": ["course-bsc-hons-financial-technology", "course-bsc-hons-marketing-and-management", "course-ba-hons-international-business-and-languages", "da-awareness"],
-  "ug2025-bal-clearing|ppc": ["courses-ug"],
-  "ug2025-cci-clearing|ppc": ["courses-ug"],
-  "ug2025-hss-clearing|ppc": ["courses-ug"],
-  "ug2025-sah-clearing|ppc": ["courses-ug"],
-  "ug2025-tec-clearing|ppc": ["courses-ug"],
-  "ug2025-uop|affiliate": ["open-day", "engineering", "undergraduate", "summer-open-day", "connected-degrees", "contact-us", "prospectus", "getting-started", "autumn-open-day", "taster-days", "personal-statement", "courses-ug", "student-life", "island-city", "fees-and-finance", "meet-us"],
-  "ug2025-uop|audio": ["jan-deadline", "UCAS-deadline", "connected-degrees", "accommodation"],
-  "ug2025-uop|email": ["offer-holder", "open-day", "scholarships-and-bursaries", "clearing", "connected-degrees"],
-  "ug2025-uop|organic": ["open-day"],
-  "ug2025-uop|ppc": ["jan-deadline", "autumn-open-day", "ucas-extra", "UCAS-deadline-brand", "UCAS-deadline", "open-experience-day", "pmax-video", "open-day", "retargeting-autumn-uod", "autumn-nov-sat", "autumn-dec-sat", "UCAS-deadline-port", "UCAS-deadline-london", "UCAS-deadline-ruk", "UCAS-deadline-parents", "UCAS-deadline-crm", "UCAS-deadline-retargeting"],
-  "ug2025-uop|print": ["uop-general", "applicant-experience-day", "prospectus", "open-day", "connected-degrees", "open-day-qr-code", "applicant-experience-day-qr-code", "connected-degrees-qr-code", "UCAS-deadline"],
-  "ug2025-uop|push": ["open-day", "autumn-oct-sat"],
-  "ug2025-uop|referral": ["autumn-open-day"],
-  "ug2025-uop|sms": ["open-experience-day", "autumn-oct-sat", "autumn-open-day", "learn-a-foreign-language", "connected-degrees", "island-city", "wellbeing", "invite", "virtual-experience"],
-  "ug2025-uop|video": ["study-abroad"],
-  "ug2025-uop-clearing|affiliate": ["Affordability", "clearing-social", "clearing-featured-uni", "core-partnership", "cug", "clearing", "student-stories", "push-sms", "priority-clearing-sign-up", "clearing-webinar"],
-  "ug2025-uop-clearing|ppc": ["priority-clearing-sign-up", "clearing-apply-now", "clearing-theres-still-time-to-apply", "priority-clearing-connected-degrees", "clearing", "accommodation", "connected-degrees", "clearing-webinar", "priority-clearing-apply", "priority-clearing-single-image", "brand", "brand-click-to-call", "clearing-click-to-call", "competitor-agg", "competitor-pass", "call-ads", "student-life", "careers-and-employability", "facilities", "estates-and-campus", "open-day", "uopl"],
-  "ug2025-uop-clearing|print": ["Affordability", "clearing"],
-  "ug2025-uop-clearing|referral": ["clearing"],
-  "ug2025-uop-clearing|sms": ["clearing-visit-day", "priority-clearing-single-video", "virtual-experience"],
-  "ug2025-uop-clearing-crm|ppc": ["priority-clearing-connected-degrees", "priority-clearing-affordability", "priority-clearing-careers", "priority-clearing-tef-gold", "priority-clearing-single-video"],
-  "ug2025-uop-clearing-influencers|ppc": ["priority-clearing-single-image", "priority-clearing-connected-degrees", "priority-clearing-sign-up", "priority-clearing-apply", "priority-clearing-affordability", "priority-clearing-careers", "priority-clearing-tef-gold", "clearing-apply-now", "clearing-theres-still-time-to-apply"],
-  "ug2025-uop-clearing-web|ppc": ["priority-clearing-connected-degrees", "priority-clearing-affordability", "priority-clearing-careers", "priority-clearing-tef-gold", "priority-clearing-single-video"],
-  "ug2025_cci|email": ["open-experience-day"],
-  "ug2025_hss|email": ["open-experience-day"],
-  "ug2025_sah|email": ["open-experience-day", "undergraduate"],
-  "ug2025_sah|print": ["undergraduate"],
-  "ug2026--uopl-sc-educator-targeting|affiliate": ["schools-and-colleges"],
-  "ug2026-clearing|affiliate": ["website-ec", "prospectus-ec", "open-day-ec", "contact-ec", "clearing_ec", "enhanced-profile-ec", "data-unlock-ec", "phase1-gif-ec", "phase2-gif-ec", "phase3-gif-ec", "phase4-gif-ec", "clearing-webinar", "clearing-webinar-SAH"],
-  "ug2026-clearing|ppc": ["course-ec", "phase1-ec", "phase2-ec", "phase3-ec", "phase4-ec", "phase1-sign-up-ec", "phase2-sign-up-ec", "phase3-apply-ec", "phase4-still-time-ec", "combined-ec", "rankings-ec", "phase1-2-brand-ec", "phase3-4-brand-ec", "phase1-2-generic-ec", "phase3-4-generic-ec", "competitor-aggressive-ec", "competitor-passive-ec", "direct-competitor-a-ec", "direct-competitor-b-ec", "direct-competitor-c-ec", "halls-ec", "accomm-ec", "student-life-ec", "careers-ec", "facilities-ec"],
-  "ug2026-clearing|print": ["global_ec", "bauer_ec", "alight_ec", "jcdecaux_ec", "priority-clearing-sign-up"],
-  "ug2026-clearing|referral": ["clearing"],
-  "ug2026-offer-holder|email": ["student-life"],
-  "ug2026-sah|email": ["open-experience-day"],
-  "ug2026-sah|print": ["course-bsc-hons-global-sport-management-dual-degree-brock-university", "course-bsc-hons-sport-exercise-and-rehabilitation-science-dual-degree-brock-university"],
-  "ug2026-uop-openday|affiliate": ["autumn-open-day", "open-day", "mpu", "featured-uni", "undergraduate", "prospectus", "contact-us", "business-sms-ec", "sms-ec", "open-day-button-ec"],
-  "ug2026-uop-openday|email": ["business-ec"],
-  "ug2026-uop-openday|ppc": ["autumn-open-day", "autumn-open-days-parents", "september-open-day", "autumn-open-days-students", "autumn-open-days-website-retargeting", "autumn-open-days-crm-retargeting", "in-feed", "lead-gen", "accommodation", "connected-degrees", "tec-ec", "UCAS-deadline", "retargeting-rankings-ec"],
-  "ug2026-uop-openday|referral": ["open-day"],
-  "ug2026-uop-openday|sms": ["business-ec"],
-  "ug2026-uopl-oed|affiliate": ["open-experience-day"],
-  "ug2026-uopl-open-day|affiliate": ["open-day-invite"],
-  "ug2026_bal|email": ["open-experience-day", "applicant-experience-day"],
-  "ug2026_bal|ppc": ["UCAS-deadline"],
-  "ug2026_bal|social": ["course-ba-hons-fashion-design"],
-  "ug2026_cci|email": ["open-experience-day"],
-  "ug2026_cci|ppc": ["UCAS-deadline", "creative-degrees-dco-ec", "creative-degrees-carousel-ec"],
-  "ug2026_cci|print": ["qr-code"],
-  "ug2026_hss|email": ["open-experience-day"],
-  "ug2026_hss|ppc": ["UCAS-deadline", "course-bsc-hons-criminology-and-criminal-justice-distance-learning", "course-bsc-hons-risk-and-security-management", "course-bsc-hons-policing-and-investigation", "course-ec"],
-  "ug2026_hss|print": ["courses-ug", "course-ba-humanities-and-social-sciences", "course-ba-education-studies", "course-ba-hons-english-and-history", "Course-ba-hons-english-language-and-literature"],
-  "ug2026_mailchimp|email": ["open-experience-day"],
-  "ug2026_sah|ppc": ["UCAS-deadline"],
-  "ug2026_tec|ppc": ["UCAS-deadline"],
-  "ug2026_uop|affiliate": ["courses-ug", "undergraduate", "UCAS-deadline", "prospectus", "banner-bus-mang-970x250-ec", "open-day", "fees-and-finance", "accommodation", "contact-us", "uopl", "autumn-open-day", "banner-bus-mang-300x600-ec", "banner-bus-mang-160x600-ec", "banner-bus-mang-300x250-ec", "banner-bus-mang-320x100-ec", "banner-bus-mang-728x90-ec", "banner-bus-mang-320x50-ec", "banner-law-300x600-ec", "banner-law-160x600-ec", "banner-law-300x250-ec", "banner-law-320x100-ec", "banner-law-728x90-ec", "banner-law-970x250-ec", "banner-law-320x50-ec", "banner-economics-finance-banking-300x600-ec"],
-  "ug2026_uop|audio": ["spring-open-day"],
-  "ug2026_uop|email": ["open-day", "offer-holder", "icp"],
-  "ug2026_uop|organic": ["booking-confirmation"],
-  "ug2026_uop|ppc": ["spring-open-day", "ucas-deadline-ec", "UCAS-deadline", "ucas-deadline-brand-ec", "open-day", "top-5-young-uni-30", "top-5-young-uni-15", "connected-degrees-30", "connected-degrees-15", "tef-gold-30", "tef-gold-15", "ucas-deadline-virtual-experience-students-ec", "ucas-deadline-virtual-experience-parents-ec", "ucas-deadline-virtual-experience-web-ec", "ucas-deadline-virtual-experience-crm-ec", "ucas-extra-tef-gold-ec", "top-5-young-uni-6", "connected-degrees-6", "tef-gold-6", "spring-open-day-16-17", "spring-open-day-18-19", "spring-open-day-parents", "spring-open-day-retargeting", "spring-open-day-crm", "taster-days"],
-  "ug2026_uop|print": ["ucas-deadline-global-ec", "open-day", "ucas-deadline-jc-decaux-ec", "ucas-deadline-clear-channel-ec", "hny-oed-postcard", "oed-postcard"],
-  "ug2026_uop|push": ["open-day", "taster-days"],
-  "ug2026_uop|referral": ["uopl", "open-day", "prospectus", "courses-ug", "virtual-experience", "undergraduate"],
-  "ug2026_uop|sms": ["open-experience-day", "travel-discounts", "offer-holder"],
-  "ug2027-uop-openday|affiliate": ["mpu", "featured-uni", "website-ec", "open-day-ec", "prospectus-ec", "contact-ec", "affordability-ec"],
-  "ug2027-uop-openday|ppc": ["spring-open-day-ec", "spring-open-day-phase1-ec", "connected-degrees-ec", "autumn-open-day-ec", "spring-open-day-phase2-ec", "spring-open-day-phase3-ec", "pause-ad-ec", "summer-affordability-ec", "summer-connected-degrees-ec", "summer-rankings-ec", "spring-open-day-parents-ec", "spring-open-day-crm-ec", "spring-open-day-website-ec", "spring-open-day-students-ec", "spring-open-day-students-phase2-ec", "mpu", "spring-open-day-students-phase3-ec", "spring-open-day-parents-phase3-ec", "spring-open-day-crm-phase3-ec", "spring-open-day-website-phase3-ec", "affordability-ec", "rankings-ec", "careers-ec", "all-themes-ec", "connected_degrees_mpu_ec"],
-  "ug2027-uop-openday|print": ["open-day"],
-  "ug2027-uop-prospectus|print": ["open-day", "fees-and-finance", "virtual-experience", "institute-of-marine-sciences", "business-simulaton-suite", "ccixr", "hampshire-constabulary", "future-technology-centre", "centre-for-simulation-health-and-care", "interpreter-training-suite", "replica-court-room", "music-and-sound-recording-studios", "motion-capture-studios", "physiology-laboratory", "bloomberg-suite", "societies", "dental-facilities", "open-experience-day", "connected-degrees", "learn-a-foreign-language", "new-course", "why-portsmouth", "sport", "personal-statement", "uopl"],
-  "uop-social|email": ["da-awareness"],
-  "uop-social|organic": ["news-story", "student-support", "student-life", "clearing-influencer", "open-day"],
-  "uop-social|print": ["da-awareness"],
-  "uop-social|social": ["news-story", "clearing", "student-life", "blog", "open-day", "student-support", "newsletter", "careers-and-employability", "graduation", "courses-ug", "welcome", "clearing-social", "accommodation", "research-innovation", "sport", "island-city", "postgrad-open-event", "global-week", "priority-clearing-sign-up", "portsmouth-football-club", "estates-and-campus", "connected-degrees", "learn-a-foreign-language", "assessments"],
-  "uop-social|video": ["uop-general", "open-day", "news-story"],
-  "uop-social-community|referral": ["course-mpharm-hons-pharmacy", "virtual-experience", "student-life"],
-  "uop-social-community|social": ["sport-events", "comment-reply", "research-innovation", "course-bsc-hons-palaeontology"],
-  "uop-social-student-generated|social": ["clearing"],
-};
-// Campaign names are free text (158 distinct historical values with no
-// fixed vocabulary — new ones are created constantly, which is the whole
-// point of the tool). This list only powers autocomplete suggestions, not
-// validation, to help avoid accidental near-duplicate campaign names.
-export const KNOWN_CAMPAIGNS = ['E17-degree', 'UG2025_CCI', 'UG2025_HSS', 'alumni-birthday-card', 'alumni-blogs', 'alumni-emails', 'alumni-event', 'alumni-fast-track', 'alumni-fundraising-futures-fund', 'alumni-graduation', 'alumni-postgraduate-promo', 'alumni-uop-social', 'alumni-update-details', 'bal-current-students', 'bal-socials', 'brand-uop', 'brand-uop-pfc', 'brand-uop-solve', 'degree-guides', 'global-partner', 'global2023-uop-jan-start', 'global2023-uop-main-cycle', 'global2024-uop-jan-start', 'global2024-uop-main-cycle', 'global2025-hss', 'global2025-uop-main-cycle', 'global2026-hss', 'global2026-uop-Jan-start', 'global2026-uop-main-cycle', 'global2026-uop-may-start', 'hss-socials', 'innovation-connect', 'internal-comms-staff', 'internal-comms-student', 'internal-comms-student-welcome-2024', 'new-course', 'pg2023-cci', 'pg2023-hss', 'pg2023-sah', 'pg2023-tec', 'pg2023-uop', 'pg2023-uop-jan-start', 'pg2023-uop-main-cycle', 'pg2023-uop-open-eve', 'pg2023-uop-pgr', 'pg2023-uop-pgr-bursaries', 'pg2024-alumni-uop-open-eve', 'pg2024-bal', 'pg2024-hss', 'pg2024-sah', 'pg2024-uop', 'pg2024-uop-bursaries', 'pg2024-uop-jan-start', 'pg2024-uop-main-cycle', 'pg2024-uop-open-eve', 'pg2024-uop-pgr', 'pg2024-uop-pgr-bursaries', 'pg2025', 'pg2025-bal', 'pg2025-cci', 'pg2025-hss', 'pg2025-sah', 'pg2025-uop', 'pg2025-uop-fast-track', 'pg2025-uop-main-cycle', 'pg2025-uop-open-eve', 'pg2025-uop-pgr', 'pg2025-uop-pgr-bursaries', 'pg2026', 'pg2026-bal', 'pg2026-cci', 'pg2026-hss', 'pg2026-sah', 'pg2026-tec', 'pg2026-uop', 'pg2026-uop-pgr', 'pg2026-uop-pgr-bursaries', 'pg2027', 'plastics-policy', 'rao-post16-bal', 'rao-post16-cci', 'rao-post16-hss', 'rao-post16-sah', 'rao-post16-teachers-and-advisers', 'rao-post16-tec', 'rao-post16-uop', 'rao-post16-uop-getting-started', 'rao-post16-uop-personal-statement-hub', 'rao-pre16-teachers-and-advisers', 'rao-pre16-uop-nurture', 'rao-teachers-and-advisers', 'rao-teachers-and-advisers-cpd-hub', 'rao-teachers-and-advisers-he-advisers-conference', 'recruitment-awareness', 'sah-2026', 'sah-print-2025', 'sah-socials', 'short-courses', 'sport-current-members', 'sport-prospective-members', 'study-while-working-da', 'studying-while-working2023-da', 'studying-while-working2023-latw', 'studying-while-working2024', 'studying-while-working2024-da', 'studying-while-working2024-latw', 'studying-while-working2025-da', 'ug-ongoing', 'ug2023-hss', 'ug2023-sah', 'ug2023-tec', 'ug2023-uop', 'ug2023-uop-clearing', 'ug2023-uop-openday', 'ug2023-uop-openday-influencers', 'ug2024-bal', 'ug2024-cci', 'ug2024-hss', 'ug2024-sah', 'ug2024-tec', 'ug2024-uop', 'ug2024-uop-aed', 'ug2024-uop-clearing', 'ug2024-uop-influencers', 'ug2024-uop-main-cycle', 'ug2024-uop-main-cycle-influencers', 'ug2024-uop-openday', 'ug2025-bal', 'ug2025-bal-clearing', 'ug2025-cci-clearing', 'ug2025-hss-clearing', 'ug2025-sah-clearing', 'ug2025-tec-clearing', 'ug2025-uop', 'ug2025-uop-clearing', 'ug2025-uop-clearing-crm', 'ug2025-uop-clearing-influencers', 'ug2025-uop-clearing-web', 'ug2025_sah', 'ug2026--uopl-sc-educator-targeting', 'ug2026-clearing', 'ug2026-offer-holder', 'ug2026-sah', 'ug2026-uop-openday', 'ug2026-uopl-oed', 'ug2026-uopl-open-day', 'ug2026_bal', 'ug2026_cci', 'ug2026_hss', 'ug2026_mailchimp', 'ug2026_sah', 'ug2026_tec', 'ug2026_uop', 'ug2027-uop-openday', 'ug2027-uop-prospectus', 'uop-social', 'uop-social-community', 'uop-social-student-generated'];
+const CONTENT_VALUES = ["1-day", "1-week", "3-days-before", "4-weeks", "academic-121", "accomm-ec", "accommodation", "Affordability", "affordability-ec", "alight_ec", "all-themes-ec", "alumni-birthday-card", "alumni-discount", "alumni-fasttrack-promo", "alumni-graduation", "alumni-postgraduate-promo", "alumni-update-your-details here", "applicant-experience-day", "applicant-experience-day-qr-code", "assessments", "audience-extension-banners", "autumn-dec-sat", "autumn-nov-sat", "autumn-oct-sat", "autumn-open-day", "autumn-open-day-ec", "autumn-open-days-crm-retargeting", "autumn-open-days-parents", "autumn-open-days-students", "autumn-open-days-website-retargeting", "awareness", "bal-taster-days", "banner-bus-mang-160x600-ec", "banner-bus-mang-300x250-ec", "banner-bus-mang-300x600-ec", "banner-bus-mang-320x100-ec", "banner-bus-mang-320x50-ec", "banner-bus-mang-728x90-ec", "banner-bus-mang-970x250-ec", "banner-economics-finance-banking-300x600-ec", "banner-law-160x600-ec", "banner-law-300x250-ec", "banner-law-300x600-ec", "banner-law-320x100-ec", "banner-law-320x50-ec", "banner-law-728x90-ec", "banner-law-970x250-ec", "bauer_ec", "benefits-offers", "blog", "bloomberg-suite", "booking-confirmation", "brand", "brand-click-to-call", "business-ec", "business-simulaton-suite", "business-sms-ec", "business-support", "call-ads", "campus-tours", "campus_pg_open_event", "career-progressors", "career-upskillers", "careers-and-employability", "careers-ec", "ccixr", "ceg-postgrad-open-event", "centre-for-simulation-health-and-care", "choosing-a-uni", "civic", "clearing", "clearing-applicant", "clearing-apply-now", "clearing-click-to-call", "clearing-featured-uni", "clearing-influencer", "clearing-live-chat", "clearing-social", "clearing-theres-still-time-to-apply", "clearing-visit-day", "clearing-webinar", "clearing-webinar-SAH", "clearing_ec", "combined-ec", "comment-reply", "competitor-agg", "competitor-aggressive-ec", "competitor-pass", "competitor-passive-ec", "connected-degrees", "connected-degrees-15", "connected-degrees-30", "connected-degrees-6", "connected-degrees-ec", "connected-degrees-qr-code", "connected_degrees_mpu_ec", "contact-ec", "contact-us", "core-partnership", "course-advanced-restorative-dental-therapy-top-up", "course-ba-bsc-hons-creative-computing", "course-ba-education-studies", "course-ba-hons-accounting-with-finance", "course-ba-hons-animation", "course-ba-hons-applied-languages", "course-ba-hons-architecture", "course-ba-hons-business-and-human-resource-management", "course-ba-hons-business-and-management", "course-ba-hons-business-management-and-entrepreneurship", "course-ba-hons-childhood-and-youth-studies", "course-ba-hons-childhood-and-youth-studies-with-criminology", "course-ba-hons-childhood-and-youth-studies-with-psychology", "course-ba-hons-computer-games-art", "course-ba-hons-computer-games-design", "course-ba-hons-creative-writing", "course-ba-hons-digital-marketing", "course-ba-hons-early-childhood-studies", "course-ba-hons-economics-and-management", "course-ba-hons-english-and-creative-writing", "course-ba-hons-english-and-history", "course-ba-hons-english-language-and-linguistics", "Course-ba-hons-english-language-and-literature", "course-ba-hons-english-literature", "course-ba-hons-entrepreneurship-and-business", "course-ba-hons-fashion-and-textile-design", "course-ba-hons-fashion-design", "course-ba-hons-fashion-marketing", "course-ba-hons-film-production", "course-ba-hons-film-studies", "course-ba-hons-financial-management", "course-ba-hons-geography", "course-ba-hons-global-communication-and-media-dual-degree", "course-ba-hons-graphic-design", "course-ba-hons-history", "course-ba-hons-history-with-american-studies", "course-ba-hons-history-with-politics", "course-ba-hons-illustration", "course-ba-hons-interior-architecture-and-design", "course-ba-hons-international-business", "course-ba-hons-international-business-and-languages", "course-ba-hons-international-business-communication", "course-ba-hons-international-development", "course-ba-hons-international-development-and-languages", "course-ba-hons-international-relations", "course-ba-hons-international-relations-and-languages", "course-ba-hons-international-relations-and-politics", "course-ba-hons-journalism", "course-ba-hons-journalism-with-creative-writing", "course-ba-hons-journalism-with-media-studies", "course-ba-hons-language-studies", "course-ba-hons-marketing", "course-ba-hons-media-and-communication-with-foundation-year", "course-ba-hons-modern-languages", "course-ba-hons-musical-theatre", "course-ba-hons-photography", "course-ba-hons-politics", "course-ba-hons-post-production-for-film-and-television", "course-ba-hons-screenwriting", "course-ba-hons-theatre", "course-ba-humanities-and-social-sciences", "course-bed-hons-primary-education-with-qualified-teacher-status", "course-beng-hons-civil-engineering", "course-beng-hons-construction-management", "course-beng-hons-electronic-engineering", "course-beng-hons-engineering-and-technology-with-foundation-year", "course-beng-hons-mechanical-and-manufacturing-engineering", "course-beng-hons-mechanical-engineering", "course-beng-hons-renewable-energy-engineering", "course-beng-hons-space-systems-engineering", "course-beng-meng-electronic-engineering", "course-beng-meng-mechanical-engineering", "course-bn-hons-nursing-adult", "course-bn-hons-nursing-mental-health", "course-bsc-accounting-and-finance", "course-bsc-econ-hons-economics", "course-bsc-econ-hons-economics-finance-and-banking", "course-bsc-hons-advancing-professional-practice-top-up", "course-bsc-hons-biochemistry", "course-bsc-hons-biology", "course-bsc-hons-biomedical-science", "course-bsc-hons-biomedical-science-with-human-biosciences-dual-degree", "course-bsc-hons-building-surveying", "course-bsc-hons-business-and-supply-chain-management", "course-bsc-hons-computer-animation-and-visual-effects", "course-bsc-hons-computer-games-production", "course-bsc-hons-computer-games-technology", "course-bsc-hons-computer-networks", "course-bsc-hons-computer-science", "course-bsc-hons-computing", "course-bsc-hons-construction-management", "course-bsc-hons-counter-terrorism-intelligence-cybercrime-dual-degree", "course-bsc-hons-creative-media-technologies", "course-bsc-hons-criminology-and-criminal-justice", "course-bsc-hons-criminology-and-criminal-justice-distance-learning", "course-bsc-hons-criminology-and-cybercrime", "course-bsc-hons-criminology-and-forensic-studies", "course-bsc-hons-criminology-with-environmental-justice", "course-bsc-hons-criminology-with-psychology", "course-bsc-hons-cyber-security-and-forensic-computing", "course-bsc-hons-data-science-and-analytics", "course-bsc-hons-dental-hygiene", "course-bsc-hons-dental-hygiene-and-dental-therapy", "course-bsc-hons-diagnostic-radiography-and-medical-imaging", "course-bsc-hons-earth-science", "course-bsc-hons-environmental-science", "course-bsc-hons-environmental-science-and-management-dual-degree", "course-bsc-hons-financial-technology", "course-bsc-hons-forensic-psychology", "course-bsc-hons-geography", "course-bsc-hons-global-sport-management-dual-degree-brock-university", "course-bsc-hons-marine-biology", "course-bsc-hons-marine-environmental-science", "course-bsc-hons-marketing-and-management", "course-bsc-hons-mathematics", "course-bsc-hons-mathematics-for-finance-and-management", "course-bsc-hons-mathematics-with-machine-learning", "course-bsc-hons-mathematics-with-statistics", "course-bsc-hons-music-technology", "course-bsc-hons-operating-department-practice", "course-bsc-hons-palaeontology", "course-bsc-hons-paramedic-science", "course-bsc-hons-pharmacology", "course-bsc-hons-physics", "course-bsc-hons-physics-astrophysics-and-cosmology", "course-bsc-hons-policing-and-investigation", "course-bsc-hons-product-design-and-innovation", "course-bsc-hons-professional-policing", "course-bsc-hons-property-development", "course-bsc-hons-psychology", "course-bsc-hons-quantity-surveying", "course-bsc-hons-risk-and-security-management", "course-bsc-hons-science-with-foundation-year", "course-bsc-hons-social-work", "course-bsc-hons-sociology", "course-bsc-hons-sociology-with-criminology", "course-bsc-hons-sociology-with-psychology", "course-bsc-hons-software-engineering", "course-bsc-hons-sport-and-exercise-psychology", "course-bsc-hons-sport-and-exercise-science", "course-bsc-hons-sport-exercise-and-rehabilitation-science-dual-degree-brock-university", "course-bsc-hons-virtual-production", "course-bsc-meng-computer-science", "course-bsc-mphys-physics", "course-certed-further-education-and-training", "course-certhe-dental-nursing", "course-dcrimj-professional-doctorate-in-criminal-justice", "course-dsyrm-professional-doctorate-in-security-risk-management", "course-ec", "course-edd-professional-doctorate-in-education", "course-executive-mba", "course-listing", "course-llb-hons-law", "course-llb-hons-law-with-business", "course-llb-hons-law-with-criminology", "course-llb-hons-law-with-legal-practice", "course-lpc-premasters", "course-ma-applied-linguistics-and-tesol", "course-ma-business-communication-for-international-leadership", "course-ma-digital-marketing", "course-ma-education-studies", "course-ma-fashion-marketing", "course-ma-international-relations", "course-ma-international-relations-and-politics", "course-ma-naval-history", "course-ma-translation-studies", "course-ma-victorian-gothic-history-literature-and-culture", "course-mba", "course-mba-educational-leadership", "course-mba-strategic-leadership", "course-mbbs-medicine-graduate-entry", "course-meng-beng-renewable-energy-engineering", "course-mn-nursing-adult", "course-mn-nursing-mental-health", "course-mpa-public-administration", "course-mpa-public-administration-degree-apprenticeship", "course-mpharm-hons-pharmacy", "course-mres-humanities-and-social-sciences", "course-mres-science-and-health", "course-msc-accounting-and-finance", "course-msc-advanced-aesthetic-and-restorative-dentistry-top-up", "course-msc-applied-aquatic-biology", "course-msc-artificial-intelligence-and-machine-learning", "course-msc-biomedical-engineering", "course-msc-biotechnology", "course-msc-business-analytics", "course-msc-clinical-exercise-physiology", "course-msc-clinical-exercise-science", "course-msc-coastal-and-marine-resource-management", "course-msc-computer-science", "course-msc-construction-project-management", "course-msc-criminal-justice", "course-msc-criminal-psychology", "course-msc-crisis-and-disaster-management", "course-msc-cybercrime", "course-msc-cybercrime-terrorism-and-security", "course-msc-digital-business-management", "course-msc-digital-dentistry-top-up", "course-msc-digital-marketing", "course-msc-economic-crime", "course-msc-economics-finance-and-banking", "course-msc-educational-leadership-and-management", "course-msc-educational-leadership-and-management-degree-apprenticeship", "course-msc-engineering-geology", "course-msc-engineering-management", "course-msc-finance", "course-msc-forensic-investigation", "course-msc-forensic-psychology", "course-msc-geographical-information-systems", "course-msc-health-psychology", "course-msc-information-systems", "course-msc-innovation-management-and-entrepreneurship", "course-msc-intelligence", "course-msc-international-business-and-management", "course-msc-international-criminal-justice", "course-msc-international-development", "course-msc-leadership-and-management-top-up", "course-msc-marketing", "course-msc-medical-biotechnology", "course-msc-music-technology", "course-msc-physiotherapy-pre-registration", "course-msc-project-management", "course-msc-psychology-and-learning-disability", "course-msc-real-estate-management", "course-msc-risk-crisis-and-resilience-management", "course-msc-security-management", "course-msc-sociology", "course-msc-sport-and-exercise-psychology", "course-msc-sports-management", "course-msc-sports-performance", "course-msc-strength-conditioning-and-rehabilitation", "course-msc-victimology", "course-pgce-courses", "course-pgce-further-education-and-training", "course-pgce-primary", "course-pgcert-conscious-sedation-for-dentistry", "course-pgcert-independent-prescribing-for-pharmacists", "course-pgdip-engineering-competence-distance-learning-degree-apprenticeship", "course-pgdip-human-resource-development-and-training-management", "course-pgr-architecture-interiors-and-urbanism", "course-pgr-area-studies", "course-pgr-art-and-design", "course-pgr-biological-sciences", "course-pgr-business-and-management", "course-pgr-criminology", "course-pgr-earth-and-environmental-sciences", "course-pgr-economics", "course-pgr-education", "course-pgr-energy-engineering", "course-pgr-law", "course-pgr-operational-research-and-logistics", "course-pgr-pharmacy-pharmacology-and-biomedical-sciences", "course-pgr-physical-and-human-geography", "course-pgr-physics", "course-pgr-politics-and-international-relations", "course-pgr-psychology", "course-pgr-sociology", "course-pgr-sport-and-exercise-science", "course-prescribing-for-nurses", "courses-pg", "courses-ug", "creative-degrees-carousel-ec", "creative-degrees-dco-ec", "crime", "cug", "da-awareness", "da-bn-nursing-adult", "da-bsc-diagnostic-radiography-medical-imaging", "da-bsc-paramedic-science", "da-healthcare", "da-healthcare-inmail", "da-retargeting", "data-unlock-ec", "day-of", "dental-facilities", "digital-flyer", "direct-competitor-a-ec", "direct-competitor-b-ec", "direct-competitor-c-ec", "discover-he-days", "display", "distance-learning", "edi", "email-2", "email1-community", "email1-funding", "email10-campus", "email11-SU", "email12-sport", "email13-ask", "email2-course", "email2-faculty", "email2-support", "email3-campus", "email3-DL", "email3-funding", "email4", "email4-121", "email5-apply", "email5-community", "email6-course-faculty", "email7-support", "email8-research", "email9-careers", "engineering", "enhanced-profile-ec", "environmental-taster-day", "estates-and-campus", "event-listing", "exclusive-to-portsmouth", "explore-our-projects", "facilities", "facilities-ec", "faculty-ilr-banner", "fast-track", "featured-uni", "fees-and-finance", "finance", "find-a-phd- supervisor", "finish-your-degree", "flexible-phd", "flexible-study", "foundation-year", "funded-phd", "funding-advert", "funding-your-research-degree", "future", "future-technology-centre", "getting-started", "global-email 1-pg-courses", "global-email 1-ug-courses", "global-email 2-why-port", "global-email 3-the-city", "global-email 4-accommodation", "global-email 5-careers", "global-email 6-support", "global-email 7-student-life", "global-week", "global_ec", "Gov-loans", "graduation", "group1", "group2", "halls-ec", "hampshire-constabulary", "he-advisers-conference-2023", "he-advisers-conference-2024", "he-advisers-conference-2025", "he-advisers-conference-2026", "hny-oed-postcard", "home-distance-learners", "home-students", "how-to-apply", "icp", "in-feed", "instant-response", "institute-of-marine-sciences", "international-students", "interpreter-training-suite", "invite", "island-city", "jan-deadline", "jan-starts", "jcdecaux_ec", "june-offer-deadline", "latw-awareness", "latw-retargeting", "lead-gen", "learn-a-foreign-language", "location", "locations-and-facilities", "london-marketing-manager", "mba-global", "meet-us", "motion-capture-studios", "mpu", "msc-digital-economy", "msc-fintech", "music-and-sound-recording-studios", "new-course", "new-course-pg", "news-story", "newsfeedad1", "newsfeedad2", "newsletter", "oed-postcard", "offer-holder", "open-day", "open-day-button-ec", "open-day-ec", "open-day-feb", "open-day-invite", "open-day-jul", "open-day-mar", "open-day-may", "open-day-qr-code", "open-experience-day", "our-area", "our-campus", "pause-ad-ec", "personal-statement", "pg-open-day", "pg-open-day-progressor", "pg-open-day-retargeting", "pg-open-day-upskiller", "pg-open-evening", "pg-webinar-series", "pgr-webinar", "pgt-mini-guide", "phase1-2-brand-ec", "phase1-2-generic-ec", "phase1-ec", "phase1-gif-ec", "phase1-sign-up-ec", "phase2-ec", "phase2-gif-ec", "phase2-sign-up-ec", "phase3-4-brand-ec", "phase3-4-generic-ec", "phase3-apply-ec", "phase3-ec", "phase3-gif-ec", "phase4-ec", "phase4-gif-ec", "phase4-still-time-ec", "phd-bursary", "physiology-laboratory", "placements", "plastic", "plastic-pollution", "pmax-video", "portsmouth-football-club", "postgrad-open-event", "postgrad-open-event-invite", "postgraduate-3rd-party-profile", "postgraduate-research", "postgraduate-research-how-to-apply", "postgraduate-taught", "preparing-for-uni", "pres-2025", "priority-clearing-affordability", "priority-clearing-apply", "priority-clearing-careers", "priority-clearing-connected-degrees", "priority-clearing-sign-up", "priority-clearing-single-image", "priority-clearing-single-video", "priority-clearing-tef-gold", "priority-courses-ec", "products-and-services", "professional-doctorates", "prospectus", "prospectus-ec", "push-sms", "qr-code", "rankings-ec", "reasons-to-do-a-masters", "referral-awards", "replica-court-room", "research-innovation", "research-subject-areas", "results-day", "retargeting-autumn-uod", "retargeting-rankings-ec", "revision", "rtg-dco", "sahcourses", "scdtp-bursary", "scholarships-and-bursaries", "school-leavers-hub", "schools-and-colleges", "sept-start", "sept-start-AI-ec", "sept-start-comp-ec", "sept-start-generic-ec", "sept-start-pmax-ec", "sept-start-RUK-ec", "sept-start-v1-ec", "sept-start-v2-ec", "september-open-day", "short-courses-and-cpd-missing-persons", "sms-ec", "so-you-want-to-workshops", "societies", "solus-email", "space", "sport", "sport-events", "sport-health-memberships", "sport-partnerships", "spring-open-day", "spring-open-day-16-17", "spring-open-day-18-19", "spring-open-day-crm", "spring-open-day-crm-ec", "spring-open-day-crm-phase3-ec", "spring-open-day-ec", "spring-open-day-parents", "spring-open-day-parents-ec", "spring-open-day-parents-phase3-ec", "spring-open-day-phase1-ec", "spring-open-day-phase2-ec", "spring-open-day-phase3-ec", "spring-open-day-retargeting", "spring-open-day-students-ec", "spring-open-day-students-phase2-ec", "spring-open-day-students-phase3-ec", "spring-open-day-website-ec", "spring-open-day-website-phase3-ec", "staff-development", "staff-events", "staff-hr", "staff-is", "student-life", "student-life-ec", "student-stories", "student-support", "study-abroad", "subject-knowledge-enhancement", "subject-webinar", "summer-affordability-ec", "summer-connected-degrees-ec", "summer-open-day", "summer-rankings-ec", "sun-digest-email", "sustainability", "Talk-to-me-about-pg", "taster-days", "teachers-guide", "teaching", "tec-ec", "tef-gold-15", "tef-gold-30", "tef-gold-6", "test", "top-5-young-uni-15", "top-5-young-uni-30", "top-5-young-uni-6", "topical", "travel-discounts", "UCAS-deadline", "UCAS-deadline-brand", "ucas-deadline-brand-ec", "ucas-deadline-clear-channel-ec", "UCAS-deadline-crm", "ucas-deadline-ec", "ucas-deadline-global-ec", "ucas-deadline-jc-decaux-ec", "UCAS-deadline-london", "UCAS-deadline-parents", "UCAS-deadline-port", "UCAS-deadline-retargeting", "UCAS-deadline-ruk", "ucas-deadline-virtual-experience-crm-ec", "ucas-deadline-virtual-experience-parents-ec", "ucas-deadline-virtual-experience-students-ec", "ucas-deadline-virtual-experience-web-ec", "ucas-extra", "ucas-extra-tef-gold-ec", "ucas-points-calculator", "ucas-process-influencer", "ucas-references", "ug-nurture2-why-portsmouth", "ug-nurture5-careers", "ug-nurture8-student-support", "ug-nurture9-student-finance", "ug-online-event", "ug-sms-nurture3-support", "undergraduate", "uop-general", "uopl", "update-details", "virtual-experience", "virtual-pg-od-21", "virtual-pg-od-36", "virtual-pg-od-retargeting", "virtual_pg_open_event", "virtual_pg_open_event_2", "virtual_pg_open_event_on_demand", "website-ec", "website-retargetting", "welcome", "wellbeing", "whatuni-display-refresh", "why-portsmouth", "work-with-us"];
+function alphaSort(list) {
+  return [...list].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+}
 
-/** Every selectable GA4 Medium, in a fixed display order. */
-export const MEDIUM_OPTIONS = Object.keys(MEDIUM_TERM_MAP);
+// Campaign names — 158 distinct historical values with no fixed vocabulary
+// (interim; see README — real list should be the "Campaign name, GA4
+// medium, content" tab's Column A, ~280 names). Powers a real <select>
+// (not just autocomplete) so it looks and behaves the same as
+// Medium/Term/Source/Content — plus "Other" for a genuinely new campaign.
+const CAMPAIGN_NAMES = ['E17-degree', 'UG2025_CCI', 'UG2025_HSS', 'alumni-birthday-card', 'alumni-blogs', 'alumni-emails', 'alumni-event', 'alumni-fast-track', 'alumni-fundraising-futures-fund', 'alumni-graduation', 'alumni-postgraduate-promo', 'alumni-uop-social', 'alumni-update-details', 'bal-current-students', 'bal-socials', 'brand-uop', 'brand-uop-pfc', 'brand-uop-solve', 'degree-guides', 'global-partner', 'global2023-uop-jan-start', 'global2023-uop-main-cycle', 'global2024-uop-jan-start', 'global2024-uop-main-cycle', 'global2025-hss', 'global2025-uop-main-cycle', 'global2026-hss', 'global2026-uop-Jan-start', 'global2026-uop-main-cycle', 'global2026-uop-may-start', 'hss-socials', 'innovation-connect', 'internal-comms-staff', 'internal-comms-student', 'internal-comms-student-welcome-2024', 'new-course', 'pg2023-cci', 'pg2023-hss', 'pg2023-sah', 'pg2023-tec', 'pg2023-uop', 'pg2023-uop-jan-start', 'pg2023-uop-main-cycle', 'pg2023-uop-open-eve', 'pg2023-uop-pgr', 'pg2023-uop-pgr-bursaries', 'pg2024-alumni-uop-open-eve', 'pg2024-bal', 'pg2024-hss', 'pg2024-sah', 'pg2024-uop', 'pg2024-uop-bursaries', 'pg2024-uop-jan-start', 'pg2024-uop-main-cycle', 'pg2024-uop-open-eve', 'pg2024-uop-pgr', 'pg2024-uop-pgr-bursaries', 'pg2025', 'pg2025-bal', 'pg2025-cci', 'pg2025-hss', 'pg2025-sah', 'pg2025-uop', 'pg2025-uop-fast-track', 'pg2025-uop-main-cycle', 'pg2025-uop-open-eve', 'pg2025-uop-pgr', 'pg2025-uop-pgr-bursaries', 'pg2026', 'pg2026-bal', 'pg2026-cci', 'pg2026-hss', 'pg2026-sah', 'pg2026-tec', 'pg2026-uop', 'pg2026-uop-pgr', 'pg2026-uop-pgr-bursaries', 'pg2027', 'plastics-policy', 'rao-post16-bal', 'rao-post16-cci', 'rao-post16-hss', 'rao-post16-sah', 'rao-post16-teachers-and-advisers', 'rao-post16-tec', 'rao-post16-uop', 'rao-post16-uop-getting-started', 'rao-post16-uop-personal-statement-hub', 'rao-pre16-teachers-and-advisers', 'rao-pre16-uop-nurture', 'rao-teachers-and-advisers', 'rao-teachers-and-advisers-cpd-hub', 'rao-teachers-and-advisers-he-advisers-conference', 'recruitment-awareness', 'sah-2026', 'sah-print-2025', 'sah-socials', 'short-courses', 'sport-current-members', 'sport-prospective-members', 'study-while-working-da', 'studying-while-working2023-da', 'studying-while-working2023-latw', 'studying-while-working2024', 'studying-while-working2024-da', 'studying-while-working2024-latw', 'studying-while-working2025-da', 'ug-ongoing', 'ug2023-hss', 'ug2023-sah', 'ug2023-tec', 'ug2023-uop', 'ug2023-uop-clearing', 'ug2023-uop-openday', 'ug2023-uop-openday-influencers', 'ug2024-bal', 'ug2024-cci', 'ug2024-hss', 'ug2024-sah', 'ug2024-tec', 'ug2024-uop', 'ug2024-uop-aed', 'ug2024-uop-clearing', 'ug2024-uop-influencers', 'ug2024-uop-main-cycle', 'ug2024-uop-main-cycle-influencers', 'ug2024-uop-openday', 'ug2025-bal', 'ug2025-bal-clearing', 'ug2025-cci-clearing', 'ug2025-hss-clearing', 'ug2025-sah-clearing', 'ug2025-tec-clearing', 'ug2025-uop', 'ug2025-uop-clearing', 'ug2025-uop-clearing-crm', 'ug2025-uop-clearing-influencers', 'ug2025-uop-clearing-web', 'ug2025_sah', 'ug2026--uopl-sc-educator-targeting', 'ug2026-clearing', 'ug2026-offer-holder', 'ug2026-sah', 'ug2026-uop-openday', 'ug2026-uopl-oed', 'ug2026-uopl-open-day', 'ug2026_bal', 'ug2026_cci', 'ug2026_hss', 'ug2026_mailchimp', 'ug2026_sah', 'ug2026_tec', 'ug2026_uop', 'ug2027-uop-openday', 'ug2027-uop-prospectus', 'uop-social', 'uop-social-community', 'uop-social-student-generated'];
 
-/** Campaign Terms valid for a given Medium — empty only for an unrecognised medium. */
+/** Every selectable Campaign, alphabetical. Interim list — see comment above. */
+export const CAMPAIGN_OPTIONS = alphaSort(CAMPAIGN_NAMES);
+
+/** Every selectable GA4 Medium, alphabetical. */
+export const MEDIUM_OPTIONS = alphaSort(Object.keys(MEDIUM_TERM_MAP));
+
+/** Every selectable Campaign Content value, alphabetical — flat list, not gated by Campaign or Medium (interim; see README). */
+export const CONTENT_OPTIONS = alphaSort(CONTENT_VALUES);
+
+/** Campaign Terms valid for a given Medium, alphabetical — empty only for an unrecognised medium. */
 export function getTermsForMedium(medium) {
-  return MEDIUM_TERM_MAP[medium] || [];
+  return alphaSort(MEDIUM_TERM_MAP[medium] || []);
 }
 
-/** Known Sources for a given Campaign Term (not exhaustive — see "Other"). */
+/** Every Campaign Term across every Medium, alphabetical — powers the shared view's Term filter. */
+export const TERM_OPTIONS = alphaSort([...new Set(Object.values(MEDIUM_TERM_MAP).flat())]);
+
+/** Known Sources for a given Campaign Term, alphabetical (not exhaustive — see "Other"). */
 export function getSourcesForTerm(term) {
-  return TERM_SOURCE_MAP[term] || [];
-}
-
-/**
- * Known Content values for a given Campaign + Medium pair (not exhaustive
- * — see "Other"). Campaign is matched case-insensitively since it's a
- * free-typed field, not a controlled selection.
- */
-export function getContentOptionsForCampaignMedium(campaign, medium) {
-  if (!campaign || !medium) return [];
-  const key = `${campaign.trim().toLowerCase()}|${medium}`;
-  return CAMPAIGN_MEDIUM_CONTENT_MAP[key] || [];
-}
-
-/**
- * Derives the Paid/Organic label from a Campaign Term's own "paid-"/
- * "organic-" prefix — this is the actual mechanism the spreadsheet used,
- * not a separate field. Used only to label shared-view records so that
- * view stays filterable by Paid/Organic per the original brief; nothing
- * in the builder itself asks for or gates on this value.
- */
-export function derivePaidOrganic(term) {
-  if (!term) return '';
-  if (term === 'performance-max') return 'Paid';
-  if (term.startsWith('paid-')) return 'Paid';
-  if (term.startsWith('organic-')) return 'Organic';
-  return '';
+  return alphaSort(TERM_SOURCE_MAP[term] || []);
 }
 
 /**

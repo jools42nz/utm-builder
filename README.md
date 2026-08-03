@@ -61,7 +61,7 @@ and `POST /api/utms` (append) against the KV namespace.
 index.html              Builder page: batch details + a repeatable row table (1 row = 1 UTM)
 shared.html              Shared view: searchable/filterable list of confirmed UTMs
 css/styles.css           UoP brand tokens (colors, type, focus states) matching the Page Standards Checker
-js/rules.js              MEDIUM_TERM_MAP / TERM_SOURCE_MAP / CAMPAIGN_MEDIUM_CONTENT_MAP, derived from real historical data — swap point for rule data
+js/rules.js              MEDIUM_TERM_MAP / TERM_SOURCE_MAP / CAMPAIGN_OPTIONS / CONTENT_OPTIONS, derived from real historical data — swap point for rule data
 js/generator.js          UTM construction + per-row evaluation (required fields, defensive re-validation, duplicates)
 js/dataAccess.js         list()/append() interface — swap point for the real backend
 js/app.js                Builder page wiring: row table, cascading selects, fill-down, bulk-add, confirmation dialog
@@ -92,12 +92,12 @@ separate "Paid / Organic" dropdown above the row table and used it to gate
 which Mediums and Terms were offered. That was a misreading: nothing in the
 spreadsheet's actual data supports a standalone Paid/Organic *input* — it's
 just a label on the Term you've already picked. The field has been removed
-entirely. **All cascading logic now lives solely in the row fields**:
-Campaign + Medium narrow Content, Medium narrows Term, Term narrows Source.
-Where a Paid/Organic label is still useful — the shared view's filter,
-matching the original brief's Definition of Done — it's derived
-automatically from whichever Term was picked (`derivePaidOrganic()`), never
-asked for.
+entirely, from both the builder and the shared view (including the shared
+view's filter row — there is no derived Paid/Organic field or filter
+anywhere in this tool any more). **All cascading logic now lives solely in
+the row fields**: Medium narrows Term, Term narrows Source. Campaign and
+Campaign Content are flat, independent lists (see below) — not gated by
+anything.
 
 The two terms that don't carry the prefix are hardcoded exceptions:
 `performance-max` (Google Ads campaign type, inherently Paid) and a legacy
@@ -105,25 +105,33 @@ bare `affiliate` term (2 rows, both Paid) — the latter is otherwise excluded,
 see below.
 
 From there:
-- **GA4 Medium → Campaign Term** (`MEDIUM_TERM_MAP`): each Medium offers the
-  full set of Terms it was ever used with historically (both paid- and
-  organic- prefixed together — there's no polarity split to navigate).
-- **Campaign Term → Source** (`TERM_SOURCE_MAP`): each Term offers the
-  Sources it was actually used with, most-used first. This list is **not
-  a hard block** — the Source dropdown always includes "Other (new
-  source)…", which reveals a free-text field. 146 distinct Sources already
-  exist and new affiliates/publishers/platforms appear regularly, so this
-  needed to keep growing rather than freeze at what's in the CSV today.
-- **Campaign + GA4 Medium → Campaign Content** (`CAMPAIGN_MEDIUM_CONTENT_MAP`):
-  mirrors the "Campaign name, GA4 medium, content" tab's own structure —
-  Content is gated by Campaign *and* Medium together, not by Medium/Term
-  like the rest of the chain. Also offers "Other (new content)…", for the
-  same reason Source does: a real campaign's set of content variants keeps
-  growing (course pages, phased creative, new landing pages) and a closed
-  list would block exactly the everyday case of adding a new one. Campaign
-  itself stays free text with autocomplete suggestions (`KNOWN_CAMPAIGNS`,
-  158 historical names) but no validation — 158 distinct campaign names
-  with new ones created constantly is not a fixed vocabulary.
+- **GA4 Medium → Campaign Term** (`MEDIUM_TERM_MAP`, via `getTermsForMedium`):
+  each Medium offers the full set of Terms it was ever used with
+  historically (both paid- and organic- prefixed together — there's no
+  polarity split to navigate). Options are alphabetical.
+- **Campaign Term → Source** (`TERM_SOURCE_MAP`, via `getSourcesForTerm`):
+  each Term offers the Sources it was actually used with, alphabetical.
+  This list is **not a hard block** — the Source dropdown always includes
+  "Other (new source)…", which reveals a free-text field. Well over 100
+  distinct Sources already exist and new affiliates/publishers/platforms
+  appear regularly, so this needed to keep growing rather than freeze at
+  what's in the CSV today.
+- **Campaign** (`CAMPAIGN_OPTIONS`) and **Campaign Content**
+  (`CONTENT_OPTIONS`) are both flat, alphabetical `<select>` lists —
+  **not** gated by Medium, Term, or each other. This is a deliberate
+  reversal of an earlier design that gated Content by Campaign+Medium
+  together: real usage showed that gating hid valid content values that
+  simply hadn't been used with a given campaign+medium pair yet, and the
+  correct behaviour is to offer every known value regardless of what else
+  is selected. Both also offer "Other (new campaign)…" / "Other (new
+  content)…" for values not yet in the list, and Campaign Content's select
+  supports native in-browser search/type-ahead given how long the list is.
+  **These two lists are currently interim, not the authoritative source**:
+  `CAMPAIGN_OPTIONS` has 158 of the real ~280 campaign names, and
+  `CONTENT_OPTIONS` has 685 of the real 1,299 content values, both
+  reverse-engineered from actual usage in the main tracker CSV rather than
+  from the "Campaign name, GA4 medium, content" tab directly (see "Known
+  gaps" below).
 
 ### Noise excluded
 
@@ -149,11 +157,7 @@ selectable regardless of judgement calls about which one is "better," so
 
 For Campaign Content specifically: a handful of rows had the literal string
 `"Content"` as their content value (clearly someone typing into, or pasting
-over, the column header) — dropped as obvious noise. Each Campaign+Medium
-pair's Content list is also capped at the 25 most-used values (a few very
-active pairs — e.g. `ug2026-clearing` + `ppc` — had 100+ distinct historical
-values); the cap only trims the long tail, and "Other" always covers
-anything not in the visible list.
+over, the column header) — dropped as obvious noise.
 
 ### Fixed, not replicated: two UTM construction bugs
 
@@ -183,21 +187,21 @@ same inputs.
 ## Interaction model: cascading selects, not free-text batches
 
 This replaced the original free-text "6 parallel textareas, row-aligned"
-design entirely, per explicit direction: Medium, Campaign Term, Source and
-Campaign Content are `<select>` elements that filter each other live, so an
-invalid combination is structurally unreachable rather than merely flagged
-after the fact. One row is one UTM; the single-UTM and bulk paths are the
-same form and the same code path — a "batch" of one row is just the
-single-UTM case. There is no Paid/Organic input anywhere — see "The core
-mechanism" above.
+design entirely, per explicit direction: Campaign, Medium, Campaign Term,
+Source and Campaign Content are all `<select>` elements (Campaign and
+Content flat and alphabetical; Medium/Term/Source cascading and
+alphabetical), so an invalid Medium→Term→Source combination is structurally
+unreachable rather than merely flagged after the fact. One row is one UTM;
+the single-UTM and bulk paths are the same form and the same code path — a
+"batch" of one row is just the single-UTM case. There is no Paid/Organic
+input anywhere — see "The core mechanism" above.
 
 - Picking a row's **Medium** narrows its **Campaign Term** options.
 - Picking a row's **Campaign Term** narrows its **Source** options (plus
   "Other").
-- Typing a row's **Campaign** and picking its **Medium** together narrow its
-  **Campaign Content** options (plus "Other") — this is a second,
-  independent cascade off Campaign+Medium, separate from the Medium → Term
-  → Source chain.
+- **Campaign** and **Campaign Content** are flat lists, independent of
+  every other field and of each other (plus "Other" on each) — deliberately
+  not cascaded off anything.
 - **+ Add row** adds one blank row; **+ Add rows from a list of Page URLs**
   bulk-seeds many rows from pasted URLs (one per line) — this is the bulk
   entry point, replacing the old parallel-textarea paste.
@@ -219,37 +223,78 @@ mechanism" above.
   requirement (a shared view across users/machines) needs a backend GitHub
   Pages cannot provide. Cloudflare Pages + Functions + KV matches the
   account's existing `jd-fpl` setup.
-- **No Paid/Organic input field.** The brief's field table lists Paid/Organic
-  as an input the user selects. Real usage data shows the Paid/Organic
-  meaning already lives entirely inside the Campaign Term (its `paid-`/
-  `organic-` prefix); a separate selector duplicating that, and using it to
-  gate Medium/Term options, produced exactly the wrong behaviour (hiding
-  real GA4 Mediums). The field is removed; the label is derived from Term
-  and still written to shared-view records so filtering-by-Paid/Organic
-  keeps working.
-- **Source and Campaign Content are guided, not gated.** The field notes say
-  Source "must respect Term/Medium rules" and (via the "Campaign name, GA4
-  medium, content" tab) Content is tied to Campaign+Medium — both
-  implemented as a strong default (pick from the real historical list) with
-  an explicit "Other" escape hatch, rather than a hard block. Blocking
+- **No Paid/Organic input field, anywhere, including the shared view.** The
+  brief's field table lists Paid/Organic as an input the user selects. Real
+  usage data shows the Paid/Organic meaning already lives entirely inside
+  the Campaign Term (its `paid-`/`organic-` prefix); a separate selector
+  duplicating that, and using it to gate Medium/Term options, produced
+  exactly the wrong behaviour (hiding real GA4 Mediums). The field, its
+  derived shared-view column, and its shared-view filter have all been
+  removed outright — Term's own prefix is the only signal, and it is not
+  surfaced as a separate field or filter anywhere.
+- **Source is guided, not gated; Campaign and Campaign Content are flat,
+  ungated lists.** The field notes say Source "must respect Term/Medium
+  rules" — implemented as a strong default (pick from the real historical
+  list per Term) with an explicit "Other" escape hatch, rather than a hard
+  block, since new affiliates/publishers/platforms appear constantly.
+  Campaign and Campaign Content go further: they are **not** filtered by
+  anything else (not Medium, not each other) — every known value is always
+  offered, with "Other" for anything not yet listed. Blocking any of these
   outright would make the tool unable to record a genuinely new
-  affiliate/publisher/platform or a new piece of creative on day one of
-  using it, which happens constantly in the real data (146 distinct
-  Sources, 1,019 distinct Content values already).
+  affiliate/publisher/campaign/content variant on day one of using it.
+- **`CAMPAIGN_OPTIONS` and `CONTENT_OPTIONS` are still interim, not the
+  authoritative lists.** See "Known gaps — pending real tab data" below.
 - Everything else follows the brief and the follow-up direction as given.
+
+## Known gaps — pending real tab data
+
+Everything in `js/rules.js` was reverse-engineered from actual *usage* in
+the main tracker CSV export (8,509 rows), not from the three lookup tabs
+that actually define what's *permitted* (`Default Medium – Term`,
+`Term Source`, `Campaign name, GA4 medium, content`). Usage under-represents
+permitted combinations — a valid Medium→Term or Term→Source pairing that
+simply was never used in those 8,509 rows won't show up. Specific,
+confirmed gaps as of this round:
+
+- **Campaign Term is confirmed incomplete for some Mediums.** `referral`
+  should also offer `organic-digital-publishing` and `organic-news`, and
+  `ppc` should offer `demand-gen` as a Term (not just as a Source) alongside
+  `paid-display, paid-search, paid-social, paid-video, pmax` — `pmax` is the
+  correct Term name, not `performance-max`. These were **not** applied yet:
+  adding a Term with no defined Source list would leave its Source dropdown
+  empty, which is worse than the current known-incomplete state. Applying
+  them correctly needs the real `Default Medium – Term` and `Term Source`
+  tab exports.
+- **Source is corrected for `paid-display` only.** The 26-item list for
+  `ppc` + `paid-display` has been fixed to match exactly. Other Term→Source
+  pairs have not been individually re-checked against the real `Term Source`
+  tab and may be similarly incomplete.
+- **`CAMPAIGN_OPTIONS` has 158 of the real ~280 campaign names** — the
+  "Campaign name, GA4 medium, content" tab's Column A (cells A2–A292) is the
+  authoritative source and hasn't been supplied.
+- **`CONTENT_OPTIONS` has 685 of the real 1,299 content values** — the same
+  tab's Column C (cells C2–C1299) is the authoritative source and hasn't
+  been supplied.
+
+To close these out completely, this tool needs: the full `Default Medium –
+Term` tab, the full `Term Source` tab, and the "Campaign name, GA4 medium,
+content" tab's Column A and Column C in full.
 
 ## Handover checklist against the brief's Definition of Done
 
 1. ✅ Field labels/order match the spreadsheet's wording exactly, minus the
    Paid/Organic input — see "Where this deviates" above for why.
-2. ✅ No invalid Medium → Term or Campaign+Medium → Content combination can
-   be produced — structurally, via the cascading selects, not just flagged
-   after entry.
+2. ✅ No invalid Medium → Term combination can be produced — structurally,
+   via the cascading selects, not just flagged after entry. Campaign and
+   Campaign Content are deliberately ungated (see "Where this deviates").
 3. ✅ Verified: a 150-row batch generates all 150 rows without loss.
 4. ✅ Verified: the confirmation text is exact, and Cancel writes nothing.
 5. ✅ Confirmed UTMs appear in the shared view immediately (no reload/extra step).
-6. ✅ Shared view is searchable (free text) and filterable (Set Up By, Campaign,
-   Date, and Paid/Organic — the last derived automatically from each record's Term).
+6. ✅ Shared view mirrors the builder's fields exactly (including Campaign
+   Content) and is searchable (free text) and filterable by all 5 UTM
+   parameters (Campaign, GA4 Medium, Campaign Term, Source, Campaign
+   Content) plus Page URL, Date, and Set Up By. No Paid/Organic field or
+   filter anywhere — see "Where this deviates".
 7. ✅ Verified via a keyboard-only Playwright pass. Not independently verified
    with a real screen reader (VoiceOver/NVDA) — ARIA roles/labels/live-regions
    are in place but that's not a substitute for an actual AT pass.
@@ -259,35 +304,39 @@ mechanism" above.
 ## Phase 4 — verification
 
 Automated Playwright pass against a local static server (`tests/e2e.mjs`,
-30/30 checks passing):
+47/47 checks passing):
 
-- No standalone Paid/Organic field exists anywhere in the form.
+- No standalone Paid/Organic field exists anywhere in the form or the
+  shared view.
+- Campaign is a real `<select>`, alphabetically ordered, with "Other".
 - Every real GA4 Medium (`ppc`, `affiliate`, `organic`, `audio`, etc.) is
-  offered with no polarity gate at all; picking `email` offers both
-  `paid-email` and `organic-email` in the same list.
-- Picking a Term narrows Source to its real historical list plus "Other".
-- Typing a known Campaign and picking its Medium narrows Campaign Content
-  to real historical values plus "Other"; an unrecognised Campaign+Medium
-  combination still offers "Other" rather than blocking.
+  offered, alphabetically ordered, with no polarity gate at all; picking
+  `email` offers both `paid-email` and `organic-email` in the same list.
+- Picking a Term narrows Source to its real historical list, alphabetically
+  ordered, plus "Other"; `ppc` + `paid-display` returns the full corrected
+  26-item Source list.
+- Campaign Content is a flat, alphabetically-ordered `<select>` that is
+  identical regardless of which Campaign or Medium is selected (not gated
+  by either), plus "Other".
 - A valid row generates a UTM matching the confirmed real param
   order/casing exactly.
-- Choosing "Other" for Source and for Campaign Content both accept a
+- Choosing "Other" for Campaign, Source, and Campaign Content all accept a
   brand-new value un-blocked.
 - A row missing Page URL, or missing Campaign Content, is blocked with a
   named inline error.
 - Bulk-add from pasted URLs creates one row per line; fill-down correctly
-  copies Medium/Term/Source/Content to every other row.
+  copies Campaign/Medium/Term/Source/Content to every other row.
 - A 150-row batch (bulk-add + fill-down) generates all 150 rows, all valid.
 - Within-batch duplicates are flagged; a row matching the shared view is
   flagged "Already exists in the shared view."
-- A confirmed record gets a Paid/Organic label derived from its Term.
 - Cancel leaves `localStorage` untouched; the confirmation text matches
   exactly, character for character.
 - Remove is disabled at 1 remaining row.
 - Keyboard-only pass: skip link first, dialog traps focus, Escape closes
   without writing, focus returns to the opener.
-- Shared view: a confirmed UTM appears without a manual refresh, and
-  filtering by the derived Paid/Organic value works.
+- Shared view: a confirmed UTM appears without a manual refresh, mirrors
+  the builder's fields exactly (including Campaign Content), and each of
+  the 5 UTM-parameter filters plus Page URL narrows results correctly.
 
 **Not covered, and worth being explicit about:**
 - No real screen reader was used (NVDA/VoiceOver) — only ARIA attributes and

@@ -6,7 +6,7 @@
 <title>Shared view — UTM Builder — University of Portsmouth</title>
 <link rel="stylesheet" href="css/styles.css" />
 </head>
-<body>
+<body class="wide-page">
 <a class="skip-link" href="#main">Skip to main content</a>
 
 <header class="site-header">
@@ -34,20 +34,36 @@
       <input type="text" id="filter-setUpBy" name="filter-setUpBy" />
     </div>
     <div class="field">
-      <label for="filter-campaign">Campaign</label>
-      <input type="text" id="filter-campaign" name="filter-campaign" />
-    </div>
-    <div class="field">
       <label for="filter-date">Date</label>
       <input type="date" id="filter-date" name="filter-date" />
     </div>
     <div class="field">
-      <label for="filter-paidOrganic">Paid / Organic</label>
-      <select id="filter-paidOrganic" name="filter-paidOrganic">
+      <label for="filter-pageUrl">Page URL</label>
+      <input type="text" id="filter-pageUrl" name="filter-pageUrl" />
+    </div>
+    <div class="field">
+      <label for="filter-campaign">Campaign</label>
+      <input type="text" id="filter-campaign" name="filter-campaign" />
+    </div>
+    <div class="field">
+      <label for="filter-gaMedium">GA4 Medium</label>
+      <select id="filter-gaMedium" name="filter-gaMedium">
         <option value="">All</option>
-        <option value="Paid">Paid</option>
-        <option value="Organic">Organic</option>
       </select>
+    </div>
+    <div class="field">
+      <label for="filter-campaignTerm">Campaign Term</label>
+      <select id="filter-campaignTerm" name="filter-campaignTerm">
+        <option value="">All</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="filter-source">Source</label>
+      <input type="text" id="filter-source" name="filter-source" />
+    </div>
+    <div class="field">
+      <label for="filter-campaignContent">Campaign Content</label>
+      <input type="text" id="filter-campaignContent" name="filter-campaignContent" />
     </div>
     <div class="actions">
       <button type="button" class="btn btn-secondary" id="clear-filters-btn">Clear filters</button>
