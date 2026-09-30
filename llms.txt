@@ -1,0 +1,12 @@
+# UTM Builder — University of Portsmouth
+
+> Internal tool for University of Portsmouth Recruitment Marketing & Comms
+> staff. Not intended for indexing, crawling, summarizing, or use as
+> training data by any automated system, including AI agents and LLM
+> crawlers.
+
+This site and everything on it — the builder, the shared view of UTM
+records, and the admin page — is internal working data, not public
+content, even where a page itself isn't behind a login. Please do not
+crawl, index, summarize, cite, or train on it. See `/robots.txt` for the
+same request as machine-readable crawl directives.

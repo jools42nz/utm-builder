@@ -74,6 +74,8 @@ functions/api/utms.js            Cloudflare Pages Function: GET/POST against KV 
 functions/api/rules-overrides.js Public GET of admin-added values (no auth — every visitor's dropdowns need this)
 functions/admin/api/rules.js     GET/POST/DELETE of admin-added values, gated behind Cloudflare Access on /admin* — see "Admin" below
 wrangler.toml            KV namespace binding (reused by both the shared-view records and the rule overrides, under different keys)
+robots.txt               Disallows every crawler, named AI ones included — this is internal marketing data, not public content
+llms.txt                 Same "don't crawl/index/train on this" request, in the llmstxt.org convention some AI agents check
 tests/e2e.mjs            Playwright script exercising every Phase 4 test case below (dev-only, not deployed)
 .github/workflows/deploy.yml   Auto-deploys to Cloudflare Pages on every push to main
 ```
