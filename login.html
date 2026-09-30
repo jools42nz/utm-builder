@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow, noarchive" />
+<title>Sign in — UTM Builder — University of Portsmouth</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png" />
+<link rel="shortcut icon" href="favicon/favicon.png" />
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+<main id="main" style="max-width: 420px; margin: 4rem auto; padding: 0 1.25rem">
+  <div class="site-brand" style="margin-bottom: 1rem">University of Portsmouth</div>
+  <section class="field-group">
+    <h1 style="margin: 0 0 0.5rem">Sign in</h1>
+    <p class="hint" style="margin-bottom: 1rem">Enter the shared passphrase for this tool.</p>
+    <form id="login-form" novalidate>
+      <div class="field">
+        <label for="passphrase">Passphrase</label>
+        <input type="password" id="passphrase" name="passphrase" autocomplete="current-password" autofocus required />
+      </div>
+      <ul class="field-errors" id="login-errors" aria-live="polite"></ul>
+      <div class="actions">
+        <button type="submit" class="btn btn-primary">Sign in</button>
+      </div>
+    </form>
+  </section>
+</main>
+<script type="module" src="js/login.js"></script>
+</body>
+</html>
