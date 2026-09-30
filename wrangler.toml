@@ -8,3 +8,12 @@ compatibility_date = "2026-07-27"
 [[kv_namespaces]]
 binding = "UTM_RECORDS"
 id = "3ba579c4196c4d35942de027d992f8a0"
+
+# Lets functions/admin/api/access.js manage who's allowed through the Access
+# policy on /admin* — not secret, just IDs. See README "Admin access
+# controls" for where to find them and for the CF_API_TOKEN secret this
+# also needs (set separately via `wrangler pages secret put CF_API_TOKEN`,
+# never committed here).
+[vars]
+CF_ACCOUNT_ID = "REPLACE_WITH_YOUR_CLOUDFLARE_ACCOUNT_ID"
+ACCESS_APP_ID = "REPLACE_WITH_YOUR_ADMIN_ACCESS_APPLICATION_ID"
