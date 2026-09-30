@@ -60,7 +60,8 @@ and `POST /api/utms` (append) against the KV namespace.
 ```
 index.html              Builder page: batch details + a repeatable row table (1 row = 1 UTM)
 shared.html              Shared view: searchable/filterable list of confirmed UTMs
-admin.html               Admin page: add/remove permanent Campaign/Source/Content values — see "Admin" below
+admin.html               Admin page: add/remove permanent Campaign/Source/Content values, manage user accounts — see "Authentication" below
+login.html               Username/password sign-in — see "Authentication" below
 css/styles.css           UoP brand tokens (colors, type, focus states) matching the Page Standards Checker
 js/rules.js              MEDIUM_TERM_MAP / TERM_SOURCE_MAP / CAMPAIGN_OPTIONS / CONTENT_OPTIONS, sourced from the spreadsheet's own lookup tabs — swap point for rule data
 js/rulesOverrides.js     Merges admin-added values (from /api/rules-overrides) on top of js/rules.js's static lists — what the builder actually imports for Campaign/Source/Content
@@ -68,132 +69,132 @@ js/generator.js          UTM construction + per-row evaluation (required fields,
 js/dataAccess.js         list()/append() interface — swap point for the real backend
 js/app.js                Builder page wiring: row table, cascading selects, duplicate row, bulk-add, confirmation dialog
 js/shared-app.js         Shared view wiring: load, filter, CSV export
-js/admin-app.js          Admin page wiring: add/remove overrides, add/remove admins, calls /admin/api/rules and /admin/api/access
+js/admin-app.js          Admin page wiring: add/remove overrides, manage users, calls /admin/api/rules and /admin/api/users
+js/login.js              Posts username/password to /api/login, redirects on success
+js/logout.js             Wires the header's "Log out" link to /api/logout
 js/utils.js              escapeHtml, CSV encoding, clipboard, file download, id generation
+functions/_middleware.js         Gates every request behind login — see "Authentication" below
+functions/_lib/session.js        Signed session-cookie helpers shared by the middleware, login, and admin APIs
+functions/_lib/users.js          Password hashing (PBKDF2) and the KV-backed user store
+functions/api/login.js           Checks username/password, sets the session cookie
+functions/api/logout.js          Clears the session cookie
+functions/api/whoami.js          Returns the current session's username/role
 functions/api/utms.js            Cloudflare Pages Function: GET/POST against KV (only used when BACKEND = 'cloudflare')
-functions/api/rules-overrides.js Public GET of admin-added values (no auth — every visitor's dropdowns need this)
-functions/admin/api/rules.js     GET/POST/DELETE of admin-added values, gated behind Cloudflare Access on /admin* — see "Admin" below
-functions/admin/api/access.js    GET/POST/DELETE of who's allowed through Access on /admin* — edits the real Cloudflare Access policy, see "Admin access controls" below
-wrangler.toml            KV namespace binding (reused by the shared-view records, rule overrides and admin directory, under different keys), plus CF_ACCOUNT_ID/ACCESS_APP_ID vars for admin access controls
+functions/api/rules-overrides.js GET of admin-added values — every page's dropdowns merge these in
+functions/admin/api/rules.js     GET/POST/DELETE of admin-added values, re-checks the admin session independently of the middleware
+functions/admin/api/users.js     GET/POST/PUT/DELETE of user accounts — admin-only, backs the "Manage users" section
+scripts/seed-admins.mjs          One-time script for creating the first 3 admin accounts — see "Authentication" below
+wrangler.toml            KV namespace binding (reused by the shared-view records, rule overrides and user accounts, under different keys) — see it for the one secret it needs
 robots.txt               Disallows every crawler, named AI ones included — this is internal marketing data, not public content
 llms.txt                 Same "don't crawl/index/train on this" request, in the llmstxt.org convention some AI agents check
-tests/e2e.mjs            Playwright script exercising every Phase 4 test case below (dev-only, not deployed)
+tests/e2e.mjs            Playwright script exercising every Phase 4 test case below (dev-only, not deployed; doesn't cover auth — see "Not covered")
 .github/workflows/deploy.yml   Auto-deploys to Cloudflare Pages on every push to main
 ```
 
-## Admin: promoting "Other" values to permanent options
+## Authentication
+
+Real accounts, built entirely into the app — no Cloudflare Access, no SSO,
+no 3rd party. This app may move off Cloudflare Pages to internal-firewall-
+only hosting, and this model is plain app code with no dependency on
+whichever platform ends up serving it. Two roles: exactly **3 admins**
+expected, everyone else a general **user**. There's no self-service
+signup — an admin creates every account by hand, from `/admin`.
+
+### What the admin role actually unlocks
 
 Every "Other" field (Campaign, Source, Campaign Content) lets anyone type a
 new value on the spot, but it never becomes a real dropdown option — the
 next person hits "Other" again for the same recurring affiliate/campaign.
-`/admin` fixes that: an approved admin picks the value once, and it's
-permanently offered to everyone from then on.
+`/admin` fixes that: an admin picks the value once, on the page at
+`/admin`, and it's permanently offered to everyone from then on. Admins
+also manage every account — see "Manage users" below.
 
-**Access control: Cloudflare Access, not a password.** `/admin` (the page)
-and `/admin/api/rules` (the write endpoint it calls) both sit behind a
-Cloudflare Access application. Approved people sign in with their
-`@port.ac.uk` email and a one-time PIN — no new credentials to manage, and
-who's approved lives entirely in the Cloudflare Zero Trust dashboard, not
-in this codebase. `functions/admin/api/rules.js` checks for the
-`Cf-Access-Authenticated-User-Email` header Access injects on every request
-that passes its login policy; Cloudflare strips any client-supplied header
-of that name at the edge, so it can't be spoofed by hitting the API
-directly — as long as `/admin*` stays covered by an Access policy. Reading
-the current override list (`functions/api/rules-overrides.js`, used by
-every visitor's builder page to merge these values into its dropdowns) is
-deliberately **not** behind Access — only *adding or removing* a value is.
+**How it works:**
+- Accounts live in the `UTM_RECORDS` KV namespace, under the `users` key —
+  one JSON array, `{ username, passwordHash, role, addedBy, addedAt }` per
+  person. Passwords are never stored in plain text: `functions/_lib/users.js`
+  hashes them with PBKDF2 (100,000 iterations, random salt per password,
+  Web Crypto — no external library).
+- `functions/_middleware.js` runs ahead of every request (the only way to
+  gate plain static HTML on a Pages site — there's no per-page server
+  render to hang a check on otherwise). No valid session → page requests
+  redirect to `/login?redirect=<where you were going>`; API requests get a
+  plain 401 JSON instead, so client-side `fetch` calls fail predictably
+  rather than following a redirect into an HTML page.
+- `/login` posts `{ username, password }` to `functions/api/login.js`,
+  which checks it against the KV user store and, on a match, sets a
+  signed, `HttpOnly` session cookie (`functions/_lib/session.js`) —
+  `{ username, role, exp }`, HMAC-signed with `SESSION_SECRET` so it can't
+  be forged or edited client-side, valid for 7 days.
+- `/admin*` additionally requires `role: "admin"` — a `user`-role session
+  gets a plain "admin access required" page/response, not a redirect loop.
+- `functions/admin/api/rules.js` and `functions/admin/api/users.js`
+  independently re-check the admin role themselves (not just trusting that
+  the middleware ran) — defence in depth.
 
-### One-time setup (Cloudflare Zero Trust dashboard, ~10 minutes)
+### Manage users (on `/admin`)
 
-1. Cloudflare dashboard → **Zero Trust** → (first visit prompts you to pick
-   a team name — any name works, it's just a URL slug).
-2. **Access → Applications → Add an application → Self-hosted.**
-3. Application domain: your Pages domain (e.g.
-   `utm-builder-608.pages.dev`), path `/admin*`. This one application
-   covers both the `/admin` page and every `/admin/api/*` call it makes.
-4. **Identity providers**: leave "One-time PIN" enabled (it's on by
-   default) — no extra IdP setup needed for email+PIN login.
-5. **Policies → Create a policy**: Action = Allow. Add a rule matching
-   **Emails** (list specific `@port.ac.uk` addresses for named admins) or
-   **Emails ending in** `@port.ac.uk` (anyone with a university email) —
-   whichever matches who should be approved. This list is the actual
-   authorization boundary; edit it here any time, no deploy needed.
-6. Save. Visiting `/admin` now prompts for an email + PIN before the page
-   loads at all.
+Add, remove, or reset the password of any account. Server-side safeguards,
+not just hidden in the UI: you can't remove your own account, and you
+can't remove the last remaining admin. Removing someone takes effect on
+their next request — their existing session cookie stops verifying,
+same as any tampered cookie would.
 
-Free Zero Trust plan covers up to 50 users, more than enough for this.
+### One-time setup: the first 3 admins
+
+The admin panel needs an admin to already exist before it can create
+anyone — so the very first accounts can't come from the panel itself.
+`scripts/seed-admins.mjs` handles that, once, from the command line:
+
+```bash
+node scripts/seed-admins.mjs julian.wootton:choose-a-real-password ben.hunt:another-real-password priya.shah:a-third-password
+npx wrangler kv key put --namespace-id=3ba579c4196c4d35942de027d992f8a0 "users" --path=users-seed.json
+rm users-seed.json
+```
+
+The script hashes each password with the exact same function the app
+verifies against, writes the result to `users-seed.json`, and prints the
+`wrangler` command to load it — reusing this app's existing `UTM_RECORDS`
+KV namespace, no second namespace to create. **Only run this once, before
+any accounts exist** — it overwrites the whole `users` key. Every account
+after that goes through `/admin`'s "Manage users" section instead.
+
+Also set the one secret this all depends on, never committed:
+```bash
+npx wrangler pages secret put SESSION_SECRET   # e.g. `openssl rand -hex 32` — long, random, never typed by a person
+```
+Until it's set, `/login` responds with "Sign-in is not configured yet"
+instead of erroring.
 
 ### Storage
 
-Admin-added values live in the same `UTM_RECORDS` KV namespace as the
-shared view, under a separate key (`rules-overrides`) — no second
-namespace to create. Each entry records `value`, `addedBy` (the Access
-email) and `addedAt`. `/api/rules-overrides` (public) strips `addedBy` out
-before returning data, so visitor dropdowns never expose staff email
-addresses.
-
-### Admin access controls
-
-The Admin page's "Admin access" section manages who can reach `/admin*` for
-real — it edits the actual Cloudflare Access "Allow" policy's email list via
-the Cloudflare API (`functions/admin/api/access.js`), the same list the Zero
-Trust dashboard shows. A KV directory alongside it (`admin-directory`, same
-`UTM_RECORDS` namespace, its own key) only adds descriptive metadata — role
-label, who invited whom, when — since Access itself doesn't track that; an
-email added straight from the dashboard instead of this page still shows up
-correctly, just without that metadata, because Cloudflare's policy is always
-re-read as the source of truth, never the KV directory alone.
-
-Safeguards: you can't remove your own admin access, and you can't remove the
-last remaining admin — both enforced server-side, not just hidden in the UI.
-There's no separate permission tier — "Owner" vs "Admin" in the UI is a label
-only, not an actual capability difference; every listed admin can invite or
-remove any other admin (except themselves).
-
-**One-time setup**, in addition to the Access application from the section
-above:
-1. Cloudflare dashboard → **My Profile → API Tokens → Create Token → Custom
-   token**. Permission: **Account → Access: Apps and Policies → Edit**,
-   scoped to this account. This token can edit *every* Access policy on the
-   account, not just this one app — treat it accordingly.
-2. Find your **Account ID** (Cloudflare dashboard → any domain or Workers &
-   Pages overview → right-hand sidebar) and paste it into `wrangler.toml`'s
-   `CF_ACCOUNT_ID`.
-3. Find the **Access Application ID** for the `/admin*` app: Zero Trust →
-   Access → Applications → open it → the UUID in the URL
-   (`.../access/apps/edit/<this-id>`). Paste it into `wrangler.toml`'s
-   `ACCESS_APP_ID`.
-4. Set the token itself as a **secret**, never committed:
-   `npx wrangler pages secret put CF_API_TOKEN` (pastes interactively,
-   never touches the repo or shell history).
-5. Push — `wrangler.toml`'s two plain vars deploy with the next build; the
-   secret applies immediately.
-
-Until all three are set, the section shows "Admin access management is not
-configured yet" instead of erroring — every other admin feature (Campaign/
-Source/Content overrides) works independently of this.
+Admin-added dropdown values live in `UTM_RECORDS` under `rules-overrides`,
+same as before. Each entry records `value`, `addedBy` (the signed-in
+admin's username — a real account now, not a typed name or an email header)
+and `addedAt`.
 
 ### Not covered
 
 - The existing Playwright suite (`tests/e2e.mjs`) runs against a plain
-  static server with no Functions runtime, so it can't exercise
-  `/admin` or the rule-override endpoints — verifying those needs
-  `wrangler pages dev` (which proxies Functions but has no real Access
-  session) or the live deployment. Manually verified against mocked
-  responses instead (page renders the unauthorized state correctly with no
-  backend; add/remove/merge-into-builder-dropdowns all work against a
-  simulated authenticated session).
-- `functions/admin/api/access.js` has never run against a real Cloudflare
-  Access application — it's only verified against mocked `/admin/api/access`
-  responses (list rendering, self/last-admin removal disabled client- and
-  server-side, invite, remove). The Cloudflare Access Policy API shape here
-  (`include: [{ email: { email } }]`, full-object `PUT` to update) is
-  documented but unexercised against a live account — worth a careful first
-  test against a real Access application before relying on it, ideally with
-  a spare admin email you can re-add via the dashboard if something's off.
-- No CSRF hardening beyond Cloudflare Access's own session cookie — an
-  accepted risk for a small internal admin tool, not a public-facing
-  write surface.
+  static server with no Functions runtime, so it never exercises the
+  middleware, login, or `/admin` at all — every one of its 55 checks loads
+  pages directly, which only works locally because there's no gate to hit.
+  The auth logic itself — `functions/_lib/users.js`'s password hashing and
+  verification, `functions/_lib/session.js`'s HMAC sign/verify, and
+  `functions/_middleware.js` / `functions/admin/api/users.js`'s
+  redirect/401/403 branching (including self-removal and last-admin
+  protection) — was verified with standalone Node scripts calling the
+  Functions directly against mock `Request`/`env`/KV objects, and the
+  Admin page's "Manage users" UI against mocked `fetch` responses. None of
+  it has run against a real Cloudflare Pages deployment yet — worth a
+  careful first login/add-user/remove-user pass after deploying, ideally
+  with a spare test account before touching a real admin's.
+- No CSRF hardening beyond `SameSite=Lax` on the session cookie — an
+  accepted risk for a small internal tool that isn't meant to be
+  internet-facing.
+- No password-strength checks beyond a minimum length (8 characters) — an
+  admin who sets someone a weak password is trusted to know better, same
+  spirit as the rest of this "manual, by hand" model.
 - Medium→Term pairs aren't admin-addable, only Campaign/Source/Content
   (the three fields that already have an "Other" escape hatch). Could be
   extended the same way if a new Medium/Term combination is ever needed.
