@@ -129,12 +129,26 @@ main {
 
 /* Forms */
 .field-group {
+  position: relative;
   border: 1px solid var(--cool-grey);
   border-radius: var(--radius);
   background: var(--white);
   box-shadow: var(--shadow);
   padding: 1.25rem;
+  margin-top: 1.75rem;
   margin-bottom: 1.25rem;
+}
+
+/* Sit fully above the box instead of the browser default of straddling the
+   border — an absolutely-positioned legend no longer triggers the native
+   border notch, so the fieldset's border renders as a complete rounded rect. */
+.field-group legend {
+  position: absolute;
+  top: -1.6rem;
+  left: 0;
+  margin: 0;
+  padding: 0;
+  font-weight: 700;
 }
 
 .field {

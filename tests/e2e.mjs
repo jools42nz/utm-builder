@@ -163,23 +163,25 @@ const rowErrors = await page.textContent('.row-error-list');
 log('Missing Page URL is blocked with a named error', rowErrors.includes('Page URL is required'), rowErrors);
 log('Missing Campaign Content is blocked with a named error', rowErrors.includes('Campaign Content is required'), rowErrors);
 
-// ---- Test 10: bulk add from pasted URLs + fill-down (Campaign, Medium, Term, Source, Content) ----
+// ---- Test 10: bulk add from pasted URLs, each row filled individually (no more fill-down) ----
 await resetPage();
 await fillBatch();
 await fillRow(row(), { pageUrl: 'https://www.port.ac.uk/x', campaign: 'ug2026-clearing', gaMedium: 'ppc', campaignTerm: 'paid-search', source: 'google', campaignContent: 'course-ec' });
-await page.click('text=+ Add rows from a list of Page URLs');
+await page.click('text=+ Add multiple rows');
 await page.fill('#bulk-urls', 'https://www.port.ac.uk/a\nhttps://www.port.ac.uk/b\nhttps://www.port.ac.uk/c');
 await page.click('#bulk-add-btn');
 const rowCountAfterBulk = await page.locator('#rows-tbody tr').count();
 log('Bulk-add from pasted URLs creates one row per line', rowCountAfterBulk === 4, `rows=${rowCountAfterBulk}`);
 
-await page.click('#fill-down-btn');
+for (let i = 1; i < rowCountAfterBulk; i++) {
+  await fillRow(row(i), { campaign: 'ug2026-clearing', gaMedium: 'ppc', campaignTerm: 'paid-search', source: 'google', campaignContent: 'course-ec' });
+}
 const row2Campaign = await row(1).locator('.row-campaign').inputValue();
 const row2Medium = await row(1).locator('.row-gaMedium').inputValue();
 const row2Term = await row(1).locator('.row-campaignTerm').inputValue();
 const row2Content = await row(1).locator('.row-campaignContent').inputValue();
 log(
-  "Fill-down copies row 1's Campaign/Medium/Term/Content to other rows",
+  "Bulk-added rows accept the same Campaign/Medium/Term/Content as row 1",
   row2Campaign === 'ug2026-clearing' && row2Medium === 'ppc' && row2Term === 'paid-search' && row2Content === 'course-ec',
   `campaign=${row2Campaign} medium=${row2Medium} term=${row2Term} content=${row2Content}`
 );
@@ -187,7 +189,7 @@ log(
 await page.click('#generate-btn');
 await page.waitForSelector('#results-section:not([hidden])');
 const summary10 = await page.textContent('#results-summary');
-log('Bulk batch (fill-down applied) is fully valid', summary10.includes('4 valid'), summary10);
+log('Bulk batch is fully valid', summary10.includes('4 valid'), summary10);
 
 // ---- Test 11: a 150-row batch generates without loss ----
 await resetPage();
@@ -197,10 +199,31 @@ await row().locator('.row-campaignContent').selectOption('__other__');
 await row().locator('.row-campaignContent-other').fill('content-0');
 const n = 150;
 const urls = Array.from({ length: n - 1 }, (_, i) => `https://www.port.ac.uk/page-${i + 1}`).join('\n');
-await page.click('text=+ Add rows from a list of Page URLs');
+await page.click('text=+ Add multiple rows');
 await page.fill('#bulk-urls', urls);
 await page.click('#bulk-add-btn');
-await page.click('#fill-down-btn');
+// Fill the other 149 rows' cascading selects via an in-page script rather than
+// one Playwright action per field — 150 rows × 5 actionability-checked
+// Playwright calls each is slow enough in this sandbox to risk the browser
+// being torn down mid-run. Same DOM, same change-event listeners, same
+// result — just driven from inside the page instead of over the CDP wire.
+await page.evaluate(() => {
+  function setAndFire(el, value) {
+    el.value = value;
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  const rows = [...document.querySelectorAll('#rows-tbody tr')].slice(1);
+  for (const tr of rows) {
+    setAndFire(tr.querySelector('.row-campaign'), 'ug2026-clearing');
+    setAndFire(tr.querySelector('.row-gaMedium'), 'ppc');
+    setAndFire(tr.querySelector('.row-campaignTerm'), 'paid-search');
+    setAndFire(tr.querySelector('.row-source'), 'google');
+    setAndFire(tr.querySelector('.row-campaignContent'), '__other__');
+    const contentOther = tr.querySelector('.row-campaignContent-other');
+    contentOther.value = 'content-0';
+    contentOther.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+});
 const t0 = Date.now();
 await page.click('#generate-btn');
 await page.waitForSelector('#results-section:not([hidden])');
@@ -227,6 +250,13 @@ log('Within-batch duplicate flagged', warnBadges === 1, `warn badges=${warnBadge
 await page.click('#confirm-open-btn');
 await page.click('#confirm-yes-btn');
 await page.waitForFunction(() => document.getElementById('confirm-dialog').hidden === true);
+const successNoteText = await page.textContent('#save-success-note');
+const successNoteHidden = await page.getAttribute('#save-success-note', 'hidden');
+log(
+  'Success note appears after confirming, below the results actions',
+  successNoteHidden === null && successNoteText.includes('successfully added to shared view'),
+  `hidden=${successNoteHidden}, text=${successNoteText}`
+);
 
 await reloadKeepingStorage();
 await fillBatch();
@@ -350,6 +380,76 @@ await page.fill('#filter-campaign', 'ug2026-clearing');
 sharedSummary = await page.textContent('#shared-summary');
 log('Shared view filters by Campaign', sharedSummary.includes('Showing 1 of 1'), sharedSummary);
 await page.fill('#filter-campaign', '');
+
+// ---- Test 18: "Copy row 1's..." fill-down button has been removed entirely ----
+await resetPage();
+const fillDownCount = await page.locator('#fill-down-btn').count();
+log('Fill-down button no longer exists', fillDownCount === 0, `count=${fillDownCount}`);
+
+// ---- Test 19: intro copy and section headings match the requested rewrite ----
+const introText = (await page.locator('.intro').allTextContents()).join(' ');
+log('Intro mentions Ben Hunt as the contact', introText.includes('Ben Hunt'), introText.trim());
+const legends = await page.locator('.field-group legend').allTextContents();
+log('Second fieldset is labelled "UTM builder"', legends[1] === 'UTM builder', legends.join(' | '));
+
+// ---- Test 20: duplicating a row inserts an identical copy directly after it ----
+await resetPage();
+await fillRow(row(), {
+  pageUrl: 'https://www.port.ac.uk/dupe-me',
+  campaign: '__other__',
+  otherCampaign: 'brand-new-campaign-2026',
+  gaMedium: 'affiliate',
+  campaignTerm: 'paid-3rd-party-website',
+  source: '__other__',
+  otherSource: 'brand-new-affiliate-2026',
+  campaignContent: '__other__',
+  otherContent: 'brand-new-content-2026',
+});
+await row().locator('.duplicate-row-btn').click();
+const rowCountAfterDuplicate = await page.locator('#rows-tbody tr').count();
+log('Duplicate button adds exactly one new row', rowCountAfterDuplicate === 2, `rows=${rowCountAfterDuplicate}`);
+
+const dupPageUrl = await row(1).locator('.row-pageUrl').inputValue();
+const dupCampaign = await row(1).locator('.row-campaign').inputValue();
+const dupCampaignOther = await row(1).locator('.row-campaign-other').inputValue();
+const dupMedium = await row(1).locator('.row-gaMedium').inputValue();
+const dupTerm = await row(1).locator('.row-campaignTerm').inputValue();
+const dupSource = await row(1).locator('.row-source').inputValue();
+const dupSourceOther = await row(1).locator('.row-source-other').inputValue();
+const dupContent = await row(1).locator('.row-campaignContent').inputValue();
+const dupContentOther = await row(1).locator('.row-campaignContent-other').inputValue();
+log(
+  'Duplicated row carries over every field, including "Other" free text',
+  dupPageUrl === 'https://www.port.ac.uk/dupe-me' &&
+    dupCampaign === '__other__' &&
+    dupCampaignOther === 'brand-new-campaign-2026' &&
+    dupMedium === 'affiliate' &&
+    dupTerm === 'paid-3rd-party-website' &&
+    dupSource === '__other__' &&
+    dupSourceOther === 'brand-new-affiliate-2026' &&
+    dupContent === '__other__' &&
+    dupContentOther === 'brand-new-content-2026',
+  `pageUrl=${dupPageUrl} campaign=${dupCampaign}/${dupCampaignOther} medium=${dupMedium} term=${dupTerm} source=${dupSource}/${dupSourceOther} content=${dupContent}/${dupContentOther}`
+);
+
+// ---- Test 21: duplicating a row in the middle inserts right after it, not at the end ----
+await resetPage();
+for (let i = 0; i < 9; i++) await page.click('#add-row-btn'); // 10 rows total
+for (let i = 0; i < 10; i++) await row(i).locator('.row-pageUrl').fill(`https://www.port.ac.uk/row-${i + 1}`);
+await row(6).locator('.duplicate-row-btn').click(); // duplicate row 7 (index 6)
+const rowCountAfterMidDuplicate = await page.locator('#rows-tbody tr').count();
+const urlsAfterMidDuplicate = await page.locator('#rows-tbody .row-pageUrl').evaluateAll((els) => els.map((el) => el.value));
+log(
+  'Duplicating row 7 of 10 inserts the copy as row 8, pushing the rest down',
+  rowCountAfterMidDuplicate === 11 &&
+    urlsAfterMidDuplicate[6] === 'https://www.port.ac.uk/row-7' &&
+    urlsAfterMidDuplicate[7] === 'https://www.port.ac.uk/row-7' &&
+    urlsAfterMidDuplicate[8] === 'https://www.port.ac.uk/row-8' &&
+    urlsAfterMidDuplicate[10] === 'https://www.port.ac.uk/row-10',
+  urlsAfterMidDuplicate.join(',')
+);
+const rowNumbersAfterMidDuplicate = await page.locator('#rows-tbody .row-number').allTextContents();
+log('Row numbers renumber sequentially after a mid-list duplicate', JSON.stringify(rowNumbersAfterMidDuplicate) === JSON.stringify(Array.from({ length: 11 }, (_, i) => String(i + 1))), rowNumbersAfterMidDuplicate.join(','));
 
 await browser.close();
 const failed = results.filter((r) => !r.pass);

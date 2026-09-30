@@ -23,11 +23,15 @@
 
 <main id="main">
   <p class="intro">
-    Build one UTM, or a whole batch. Each row is one UTM: pick a GA4 Medium and its
-    options for Campaign Term, Source and Campaign Content narrow automatically, so you
-    can't create an invalid combination. Add more rows for a batch — same one page, no
-    separate bulk mode.
+    Welcome to the UoP RMC UTM builder. This tool has been built to replace the UTM
+    spreadsheet. The logic within remains the same, in that the different UTM
+    parameters in the drop downs are coded to match logical UTM strings. Once you
+    have created your UTM's, either as a singular or as a batch, click the "Generate
+    UTMs" button. The UTM's will then pass to the Shared View tab. The tool will then
+    ask for confirmation if there are no errors highlighted. If there are errors
+    highlighted, then please rectify those.
   </p>
+  <p class="intro hint">For any queries, please contact Ben Hunt.</p>
 
   <form id="builder-form" novalidate>
     <fieldset class="field-group">
@@ -48,13 +52,12 @@
     </fieldset>
 
     <fieldset class="field-group">
-      <legend>UTM rows</legend>
+      <legend>UTM builder</legend>
 
       <div class="row-toolbar">
         <button type="button" class="btn btn-secondary" id="add-row-btn">+ Add row</button>
-        <button type="button" class="btn btn-secondary" id="fill-down-btn">Copy row 1's Campaign/Medium/Term/Source/Content to all rows</button>
         <details class="bulk-add">
-          <summary class="btn btn-secondary">+ Add rows from a list of Page URLs</summary>
+          <summary class="btn btn-secondary">+ Add multiple rows</summary>
           <div class="bulk-add-body">
             <label for="bulk-urls">Paste one Page URL per line — each becomes a new row</label>
             <textarea id="bulk-urls" rows="4"></textarea>
@@ -103,6 +106,7 @@
       <button type="button" class="btn btn-secondary" id="export-csv-btn">Export CSV</button>
       <button type="button" class="btn btn-primary" id="confirm-open-btn">Confirm &amp; add to shared view</button>
     </div>
+    <p id="save-success-note" class="hint" hidden>UTM's successfully added to shared view. View in tab at the top or export CSV here.</p>
   </section>
 </main>
 

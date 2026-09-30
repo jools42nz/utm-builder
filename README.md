@@ -66,7 +66,7 @@ js/rules.js              MEDIUM_TERM_MAP / TERM_SOURCE_MAP / CAMPAIGN_OPTIONS / 
 js/rulesOverrides.js     Merges admin-added values (from /api/rules-overrides) on top of js/rules.js's static lists — what the builder actually imports for Campaign/Source/Content
 js/generator.js          UTM construction + per-row evaluation (required fields, defensive re-validation, duplicates)
 js/dataAccess.js         list()/append() interface — swap point for the real backend
-js/app.js                Builder page wiring: row table, cascading selects, fill-down, bulk-add, confirmation dialog
+js/app.js                Builder page wiring: row table, cascading selects, duplicate row, bulk-add, confirmation dialog
 js/shared-app.js         Shared view wiring: load, filter, CSV export
 js/admin-app.js          Admin page wiring: add/remove overrides, calls /admin/api/rules
 js/utils.js              escapeHtml, CSV encoding, clipboard, file download, id generation
@@ -281,13 +281,15 @@ input anywhere — see "The core mechanism" above.
 - **Campaign** and **Campaign Content** are flat lists, independent of
   every other field and of each other (plus "Other" on each) — deliberately
   not cascaded off anything.
-- **+ Add row** adds one blank row; **+ Add rows from a list of Page URLs**
-  bulk-seeds many rows from pasted URLs (one per line) — this is the bulk
-  entry point, replacing the old parallel-textarea paste.
-- **Copy row 1's Campaign/Medium/Term/Source/Content to all rows** handles
-  the common bulk case (many different Page URLs, one campaign/channel) in
-  one click, without which setting Medium/Term/Source/Content on 150 rows by
-  hand would be impractical.
+- **+ Add row** adds one blank row; **+ Add multiple rows** bulk-seeds many
+  rows from pasted URLs (one per line) — this is the bulk entry point,
+  replacing the old parallel-textarea paste.
+- **Duplicate** (per row) inserts an exact copy of that row — including any
+  "Other" free-text values — directly after it, shifting later rows down by
+  one. Replaced the old "Copy row 1's Campaign/Medium/Term/Source/Content to
+  all rows" fill-down button, which only ever copied from row 1; duplicating
+  any row and editing the copy covers the same bulk case without that
+  restriction.
 - Duplicates (same final UTM string) are flagged, not blocked — both within
   the batch and against everything already in the shared view — since a
   legitimate re-run is sometimes intended.
@@ -367,9 +369,12 @@ Automated Playwright pass against a local static server (`tests/e2e.mjs`,
   brand-new value un-blocked.
 - A row missing Page URL, or missing Campaign Content, is blocked with a
   named inline error.
-- Bulk-add from pasted URLs creates one row per line; fill-down correctly
-  copies Campaign/Medium/Term/Source/Content to every other row.
-- A 150-row batch (bulk-add + fill-down) generates all 150 rows, all valid.
+- Bulk-add from pasted URLs creates one row per line.
+- A 150-row batch (bulk-add, each row filled individually) generates all 150
+  rows, all valid.
+- Duplicating a row inserts an exact copy directly after it — including any
+  "Other" free-text values — shifting later rows down by one, and renumbers
+  correctly.
 - Within-batch duplicates are flagged; a row matching the shared view is
   flagged "Already exists in the shared view."
 - Cancel leaves `localStorage` untouched; the confirmation text matches

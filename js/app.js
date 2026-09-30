@@ -13,6 +13,7 @@ const rowsStatusRegion = document.getElementById('rows-status-region');
 const statusRegion = document.getElementById('status-region');
 const resultsSection = document.getElementById('results-section');
 const resultsSummary = document.getElementById('results-summary');
+const saveSuccessNote = document.getElementById('save-success-note');
 const confirmOpenBtn = document.getElementById('confirm-open-btn');
 const confirmDialog = document.getElementById('confirm-dialog');
 const confirmYesBtn = document.getElementById('confirm-yes-btn');
@@ -153,7 +154,10 @@ function createRowElement() {
       <input type="text" class="row-campaignContent-other" data-label="New content" placeholder="Type new content" hidden />
     </td>
     <td class="row-result"></td>
-    <td><button type="button" class="btn btn-secondary btn-small remove-row-btn" data-label="Remove row">Remove</button></td>
+    <td>
+      <button type="button" class="btn btn-secondary btn-small duplicate-row-btn" data-label="Duplicate row">Duplicate</button>
+      <button type="button" class="btn btn-secondary btn-small remove-row-btn" data-label="Remove row">Remove</button>
+    </td>
   `;
 
   tr.querySelector('.row-campaign').addEventListener('change', (e) => {
@@ -191,6 +195,9 @@ function createRowElement() {
   tr.querySelectorAll('.row-pageUrl, .row-campaign-other, .row-source-other, .row-campaignContent-other').forEach((el) => {
     el.addEventListener('input', () => clearRowResult(tr));
   });
+  tr.querySelector('.duplicate-row-btn').addEventListener('click', () => {
+    duplicateRow(tr);
+  });
   tr.querySelector('.remove-row-btn').addEventListener('click', () => {
     if (rowsTbody.querySelectorAll('tr').length <= 1) return;
     tr.remove();
@@ -210,6 +217,21 @@ function addRow(prefill = {}) {
   if (prefill.pageUrl) tr.querySelector('.row-pageUrl').value = prefill.pageUrl;
   updateRowNumbers();
   return tr;
+}
+
+/** Inserts a copy of `tr` immediately after it, with the same Page URL and cascading selects (including any "Other" free-text values). */
+function duplicateRow(tr) {
+  const data = getRowData(tr);
+  const newTr = createRowElement();
+  newTr.querySelector('.row-pageUrl').value = data.pageUrl;
+  copySelectOrOther(newTr, '.row-campaign', '.row-campaign-other', OTHER_CAMPAIGN, data.campaign);
+  populateMediumOptions(newTr, data.gaMedium);
+  populateTermOptions(newTr, data.campaignTerm);
+  copySelectOrOther(newTr, '.row-source', '.row-source-other', OTHER_SOURCE, data.source);
+  copySelectOrOther(newTr, '.row-campaignContent', '.row-campaignContent-other', OTHER_CONTENT, data.campaignContent);
+  tr.after(newTr);
+  updateRowNumbers();
+  announceRows('Row duplicated.');
 }
 
 function getRowData(tr) {
@@ -289,27 +311,12 @@ function copySelectOrOther(tr, selectClass, otherClass, otherSentinel, value) {
   }
 }
 
-document.getElementById('fill-down-btn').addEventListener('click', () => {
-  const rows = [...rowsTbody.querySelectorAll('tr')];
-  if (rows.length < 2) return;
-  const [first, ...rest] = rows;
-  const source = getRowData(first);
-  for (const tr of rest) {
-    copySelectOrOther(tr, '.row-campaign', '.row-campaign-other', OTHER_CAMPAIGN, source.campaign);
-    populateMediumOptions(tr, source.gaMedium);
-    populateTermOptions(tr, source.campaignTerm);
-    copySelectOrOther(tr, '.row-source', '.row-source-other', OTHER_SOURCE, source.source);
-    copySelectOrOther(tr, '.row-campaignContent', '.row-campaignContent-other', OTHER_CONTENT, source.campaignContent);
-    clearRowResult(tr);
-  }
-  announceRows(`Copied row 1's Campaign, Medium, Term, Source and Content to ${rest.length} row(s).`);
-});
-
 document.getElementById('clear-btn').addEventListener('click', () => {
   form.reset();
   rowsTbody.innerHTML = '';
   addRow();
   resultsSection.hidden = true;
+  saveSuccessNote.hidden = true;
   lastResults = [];
   lastBatch = null;
   announce('Form cleared.');
@@ -357,6 +364,7 @@ form.addEventListener('submit', async (event) => {
   event.preventDefault();
   clearBatchFieldErrors();
   resultsSection.hidden = true;
+  saveSuccessNote.hidden = true;
 
   const batch = getBatch();
   const batchErrors = validateBatchFields(batch);
@@ -467,6 +475,7 @@ confirmYesBtn.addEventListener('click', async () => {
     await dataAccess.append(records);
     closeConfirmDialog();
     confirmOpenBtn.disabled = true;
+    saveSuccessNote.hidden = false;
     announce(`${records.length} UTM(s) added to the shared view.`);
   } catch (err) {
     closeConfirmDialog();
