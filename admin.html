@@ -21,8 +21,6 @@
   <nav aria-label="Primary">
     <a href="index.html">Builder</a>
     <a href="shared.html">Shared view</a>
-    <a href="admin.html" aria-current="page">Admin</a>
-    <a href="#" id="logout-link">Log out</a>
   </nav>
 </header>
 
@@ -30,26 +28,23 @@
   <p class="intro">
     Add a Campaign, Source or Campaign Content value permanently to the builder's
     dropdowns, so future users don't have to keep choosing "Other" for something
-    that keeps coming up. This page needs the admin passphrase — signing in with
-    just the regular passphrase gets you the Builder and Shared view, not here.
+    that keeps coming up. This page is restricted to approved admins via
+    Cloudflare Access — anyone else who opens this URL is stopped at Cloudflare's
+    own login wall before this page loads.
   </p>
 
   <p id="admin-status-region" class="visually-hidden" role="status" aria-live="polite"></p>
   <div id="admin-unauthorized" role="alert" hidden>
     <p>
-      Your sign-in doesn't have admin access, or it's expired.
-      <a href="/login?redirect=%2Fadmin">Sign in again</a> with the admin passphrase.
+      Not signed in via Cloudflare Access — this page's write API returned 401.
+      If you're testing locally without <code>wrangler pages dev</code>, or the
+      <code>/admin*</code> Access application isn't set up on this deployment yet,
+      see the README's "Admin: promoting 'Other' values" section.
     </p>
   </div>
 
   <div id="admin-content" hidden>
-    <div class="field-group">
-      <div class="field" style="margin-bottom: 0">
-        <label for="admin-name">Your name</label>
-        <input type="text" id="admin-name" placeholder="So colleagues know who added what" />
-        <p class="hint">There's no per-admin login in this model, just the shared admin passphrase — typing your name here is what tags your additions below.</p>
-      </div>
-    </div>
+    <p class="muted">Signed in as <strong id="viewer-email"></strong></p>
 
     <section class="field-group" aria-labelledby="add-campaign-heading">
       <h2 id="add-campaign-heading">Add a Campaign</h2>
@@ -95,6 +90,29 @@
       </form>
     </section>
 
+    <section class="field-group" aria-labelledby="admin-access-heading">
+      <h2 id="admin-access-heading">Admin access</h2>
+      <p class="hint">
+        Who can reach this page — backed by Cloudflare Access, so adding or removing someone here updates the
+        same allow-list as the Zero Trust dashboard. "Role" is a label only; every admin has identical access.
+      </p>
+      <p id="admin-access-error" role="alert" hidden></p>
+      <div id="admin-access-list"></div>
+      <form id="invite-admin-form">
+        <div class="field">
+          <label for="invite-email">Invite by email</label>
+          <input type="email" id="invite-email" required />
+        </div>
+        <div class="field">
+          <label for="invite-role">Role label</label>
+          <input type="text" id="invite-role" value="Admin" />
+        </div>
+        <div class="actions">
+          <button type="submit" class="btn btn-primary">Send invite</button>
+        </div>
+      </form>
+    </section>
+
     <section class="field-group" aria-labelledby="current-overrides-heading">
       <h2 id="current-overrides-heading">Admin-added values</h2>
       <p class="hint">Only values added here can be removed — the base lists from js/rules.js aren't editable from this page.</p>
@@ -104,6 +122,5 @@
 </main>
 
 <script type="module" src="js/admin-app.js"></script>
-<script type="module" src="js/logout.js"></script>
 </body>
 </html>
