@@ -28,7 +28,7 @@ async function fillRow(rowLocator, { pageUrl, campaign, gaMedium, campaignTerm, 
 }
 
 function row(n = 0) {
-  return page.locator('#rows-tbody tr').nth(n);
+  return page.locator('#rows-list .row-card').nth(n);
 }
 
 async function resetPage() {
@@ -170,7 +170,7 @@ await fillRow(row(), { pageUrl: 'https://www.port.ac.uk/x', campaign: 'ug2026-cl
 await page.click('text=Add multiple rows');
 await page.fill('#bulk-urls', 'https://www.port.ac.uk/a\nhttps://www.port.ac.uk/b\nhttps://www.port.ac.uk/c');
 await page.click('#bulk-add-btn');
-const rowCountAfterBulk = await page.locator('#rows-tbody tr').count();
+const rowCountAfterBulk = await page.locator('#rows-list .row-card').count();
 log('Bulk-add from pasted URLs creates one row per line', rowCountAfterBulk === 4, `rows=${rowCountAfterBulk}`);
 
 for (let i = 1; i < rowCountAfterBulk; i++) {
@@ -212,7 +212,7 @@ await page.evaluate(() => {
     el.value = value;
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
-  const rows = [...document.querySelectorAll('#rows-tbody tr')].slice(1);
+  const rows = [...document.querySelectorAll('#rows-list .row-card')].slice(1);
   for (const tr of rows) {
     setAndFire(tr.querySelector('.row-campaign'), 'ug2026-clearing');
     setAndFire(tr.querySelector('.row-gaMedium'), 'ppc');
@@ -228,7 +228,7 @@ const t0 = Date.now();
 await page.click('#generate-btn');
 await page.waitForSelector('#results-section:not([hidden])');
 const elapsed = Date.now() - t0;
-const rowCount150 = await page.locator('#rows-tbody tr').count();
+const rowCount150 = await page.locator('#rows-list .row-card').count();
 const summary150 = await page.textContent('#results-summary');
 log('150-row batch generates all 150 rows without loss', rowCount150 === n && summary150.includes('150 valid'), `rows=${rowCount150}, summary="${summary150}", elapsed=${elapsed}ms`);
 
@@ -244,7 +244,7 @@ await row(1).locator('.row-campaignContent').selectOption('__other__');
 await row(1).locator('.row-campaignContent-other').fill('dup-content');
 await page.click('#generate-btn');
 await page.waitForSelector('#results-section:not([hidden])');
-const warnBadges = await page.locator('#rows-tbody .pill-warn').count();
+const warnBadges = await page.locator('#rows-list .pill-warn').count();
 log('Within-batch duplicate flagged', warnBadges === 1, `warn badges=${warnBadges}`);
 
 await page.click('#confirm-open-btn');
@@ -291,8 +291,8 @@ log('Cancel writes nothing to storage', storedAfterCancel === null, `stored=${st
 await resetPage();
 log('Remove is disabled with only 1 row', await row().locator('.remove-row-btn').isDisabled());
 await page.click('#add-row-btn');
-await page.locator('#rows-tbody tr').nth(1).locator('.remove-row-btn').click();
-const rowsAfterRemove = await page.locator('#rows-tbody tr').count();
+await page.locator('#rows-list .row-card').nth(1).locator('.remove-row-btn').click();
+const rowsAfterRemove = await page.locator('#rows-list .row-card').count();
 log('Row removed back down to 1', rowsAfterRemove === 1, `rows=${rowsAfterRemove}`);
 
 // ---- Test 15: keyboard-only pass ----
@@ -406,7 +406,7 @@ await fillRow(row(), {
   otherContent: 'brand-new-content-2026',
 });
 await row().locator('.duplicate-row-btn').click();
-const rowCountAfterDuplicate = await page.locator('#rows-tbody tr').count();
+const rowCountAfterDuplicate = await page.locator('#rows-list .row-card').count();
 log('Duplicate button adds exactly one new row', rowCountAfterDuplicate === 2, `rows=${rowCountAfterDuplicate}`);
 
 const dupPageUrl = await row(1).locator('.row-pageUrl').inputValue();
@@ -437,8 +437,8 @@ await resetPage();
 for (let i = 0; i < 9; i++) await page.click('#add-row-btn'); // 10 rows total
 for (let i = 0; i < 10; i++) await row(i).locator('.row-pageUrl').fill(`https://www.port.ac.uk/row-${i + 1}`);
 await row(6).locator('.duplicate-row-btn').click(); // duplicate row 7 (index 6)
-const rowCountAfterMidDuplicate = await page.locator('#rows-tbody tr').count();
-const urlsAfterMidDuplicate = await page.locator('#rows-tbody .row-pageUrl').evaluateAll((els) => els.map((el) => el.value));
+const rowCountAfterMidDuplicate = await page.locator('#rows-list .row-card').count();
+const urlsAfterMidDuplicate = await page.locator('#rows-list .row-pageUrl').evaluateAll((els) => els.map((el) => el.value));
 log(
   'Duplicating row 7 of 10 inserts the copy as row 8, pushing the rest down',
   rowCountAfterMidDuplicate === 11 &&
@@ -448,7 +448,7 @@ log(
     urlsAfterMidDuplicate[10] === 'https://www.port.ac.uk/row-10',
   urlsAfterMidDuplicate.join(',')
 );
-const rowNumbersAfterMidDuplicate = await page.locator('#rows-tbody .row-number').allTextContents();
+const rowNumbersAfterMidDuplicate = await page.locator('#rows-list .row-number').allTextContents();
 log('Row numbers renumber sequentially after a mid-list duplicate', JSON.stringify(rowNumbersAfterMidDuplicate) === JSON.stringify(Array.from({ length: 11 }, (_, i) => String(i + 1))), rowNumbersAfterMidDuplicate.join(','));
 
 await browser.close();
