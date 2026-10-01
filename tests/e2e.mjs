@@ -167,7 +167,7 @@ log('Missing Campaign Content is blocked with a named error', rowErrors.includes
 await resetPage();
 await fillBatch();
 await fillRow(row(), { pageUrl: 'https://www.port.ac.uk/x', campaign: 'ug2026-clearing', gaMedium: 'ppc', campaignTerm: 'paid-search', source: 'google', campaignContent: 'course-ec' });
-await page.click('text=+ Add multiple rows');
+await page.click('text=Add multiple rows');
 await page.fill('#bulk-urls', 'https://www.port.ac.uk/a\nhttps://www.port.ac.uk/b\nhttps://www.port.ac.uk/c');
 await page.click('#bulk-add-btn');
 const rowCountAfterBulk = await page.locator('#rows-tbody tr').count();
@@ -199,7 +199,7 @@ await row().locator('.row-campaignContent').selectOption('__other__');
 await row().locator('.row-campaignContent-other').fill('content-0');
 const n = 150;
 const urls = Array.from({ length: n - 1 }, (_, i) => `https://www.port.ac.uk/page-${i + 1}`).join('\n');
-await page.click('text=+ Add multiple rows');
+await page.click('text=Add multiple rows');
 await page.fill('#bulk-urls', urls);
 await page.click('#bulk-add-btn');
 // Fill the other 149 rows' cascading selects via an in-page script rather than
@@ -244,7 +244,7 @@ await row(1).locator('.row-campaignContent').selectOption('__other__');
 await row(1).locator('.row-campaignContent-other').fill('dup-content');
 await page.click('#generate-btn');
 await page.waitForSelector('#results-section:not([hidden])');
-const warnBadges = await page.locator('.badge-warn').count();
+const warnBadges = await page.locator('#rows-tbody .pill-warn').count();
 log('Within-batch duplicate flagged', warnBadges === 1, `warn badges=${warnBadges}`);
 
 await page.click('#confirm-open-btn');
@@ -389,8 +389,8 @@ log('Fill-down button no longer exists', fillDownCount === 0, `count=${fillDownC
 // ---- Test 19: intro copy and section headings match the requested rewrite ----
 const introText = (await page.locator('.intro').allTextContents()).join(' ');
 log('Intro mentions Ben Hunt as the contact', introText.includes('Ben Hunt'), introText.trim());
-const legends = await page.locator('.field-group legend').allTextContents();
-log('Second fieldset is labelled "UTM builder"', legends[1] === 'UTM builder', legends.join(' | '));
+const cardLabels = await page.locator('.card-label').allTextContents();
+log('Second section is labelled "UTM builder"', cardLabels[1] === 'UTM builder', cardLabels.join(' | '));
 
 // ---- Test 20: duplicating a row inserts an identical copy directly after it ----
 await resetPage();

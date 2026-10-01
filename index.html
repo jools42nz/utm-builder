@@ -8,110 +8,161 @@
 <link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png" />
 <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png" />
 <link rel="shortcut icon" href="favicon/favicon.png" />
+<link href="https://fonts.googleapis.com/css2?family=Encode+Sans+Expanded:wght@400;600;700;800&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to main content</a>
 
-<header class="site-header">
-  <div class="site-header-inner">
-    <p class="site-brand">University of Portsmouth</p>
-    <h1>UTM Builder</h1>
+<div class="app-shell">
+  <div class="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo-mark">
+        <svg viewBox="0 0 74.8 74.8" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#009EE2" d="M0,49.8c0,13.8,11.2,24.9,24.9,24.9h24.9V0H0V49.8z"/>
+          <path fill="#621360" d="M49.8,24.9L49.8,24.9H24.9v49.8v24.9l24.9-24.9c13.8,0,24.9-11.2,24.9-24.9C74.8,36.1,63.6,24.9,49.8,24.9z"/>
+          <polygon fill="#0076A6" points="49.8,0 49.8,24.9 24.9,24.9"/>
+          <rect x="24.9" y="24.9" fill="#3C0238" width="24.9" height="49.8"/>
+        </svg>
+      </div>
+      <div>
+        <div class="sidebar-brand-name">UTM Builder</div>
+        <div class="sidebar-brand-sub">RECRUITMENT MARKETING</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav" aria-label="Primary">
+      <a href="index.html" aria-current="page">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg>
+        Builder
+      </a>
+      <a href="shared.html">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="10" x2="9" y2="20"/></svg>
+        Shared view
+      </a>
+      <a href="admin.html">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/></svg>
+        Admin
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-contact">
+        <div class="avatar">BH</div>
+        <div>
+          <div class="sidebar-contact-name">Ben Hunt</div>
+          <div class="sidebar-contact-hint">Questions? Reach out</div>
+        </div>
+      </div>
+    </div>
   </div>
-  <nav aria-label="Primary">
-    <a href="index.html" aria-current="page">Builder</a>
-    <a href="shared.html">Shared view</a>
-  </nav>
-</header>
 
-<main id="main">
-  <p class="intro">
-    Welcome to the UoP RMC UTM builder. This tool has been built to replace the UTM
-    spreadsheet. The logic within remains the same, in that the different UTM
-    parameters in the drop downs are coded to match logical UTM strings. Once you
-    have created your UTM's, either as a singular or as a batch, click the "Generate
-    UTMs" button. The UTM's will then pass to the Shared View tab. The tool will then
-    ask for confirmation if there are no errors highlighted. If there are errors
-    highlighted, then please rectify those.
-  </p>
-  <p class="intro hint">For any queries, please contact Ben Hunt.</p>
-
-  <form id="builder-form" novalidate>
-    <fieldset class="field-group">
-      <legend>Batch details</legend>
-
-      <div class="field">
-        <label for="setUpBy">Set Up By</label>
-        <input type="text" id="setUpBy" name="setUpBy" required aria-describedby="setUpBy-hint" />
-        <p class="hint" id="setUpBy-hint">Your name, so colleagues know who created this batch.</p>
-        <ul class="field-errors" id="setUpBy-errors" aria-live="polite"></ul>
+  <main id="main" class="main">
+    <div class="page-head">
+      <div>
+        <h1>UTM Builder</h1>
+        <p class="intro">
+          Welcome to the UoP RMC UTM builder. This tool has been built to replace the UTM
+          spreadsheet. The logic within remains the same, in that the different UTM
+          parameters in the drop downs are coded to match logical UTM strings. Once you
+          have created your UTM's, either as a singular or as a batch, click the "Generate
+          UTMs" button. The UTM's will then pass to the Shared View tab. The tool will then
+          ask for confirmation if there are no errors highlighted. If there are errors
+          highlighted, then please rectify those.
+        </p>
+        <p class="intro hint">For any queries, please contact Ben Hunt.</p>
       </div>
+    </div>
 
-      <div class="field">
-        <label for="date">Date</label>
-        <input type="date" id="date" name="date" required />
-        <ul class="field-errors" id="date-errors" aria-live="polite"></ul>
-      </div>
-    </fieldset>
-
-    <fieldset class="field-group">
-      <legend>UTM builder</legend>
-
-      <div class="row-toolbar">
-        <button type="button" class="btn btn-secondary" id="add-row-btn">+ Add row</button>
-        <details class="bulk-add">
-          <summary class="btn btn-secondary">+ Add multiple rows</summary>
-          <div class="bulk-add-body">
-            <label for="bulk-urls">Paste one Page URL per line — each becomes a new row</label>
-            <textarea id="bulk-urls" rows="4"></textarea>
-            <button type="button" class="btn btn-secondary" id="bulk-add-btn">Add rows</button>
+    <form id="builder-form" novalidate>
+      <div class="card batch-bar">
+        <div class="card-label">Batch details</div>
+        <div class="batch-bar-fields">
+          <div class="field">
+            <label for="setUpBy">Set Up By</label>
+            <input type="text" id="setUpBy" name="setUpBy" required aria-describedby="setUpBy-hint" />
+            <p class="hint" id="setUpBy-hint">Your name, so colleagues know who created this batch.</p>
+            <ul class="field-errors" id="setUpBy-errors" aria-live="polite"></ul>
           </div>
-        </details>
+          <div class="field">
+            <label for="date">Date</label>
+            <input type="date" id="date" name="date" required />
+            <ul class="field-errors" id="date-errors" aria-live="polite"></ul>
+          </div>
+        </div>
       </div>
 
-      <p id="rows-status-region" class="visually-hidden" role="status" aria-live="polite"></p>
+      <div class="card" style="margin-top: 22px; display: flex; flex-direction: column; gap: 18px;">
+        <div class="card-head">
+          <div class="card-label">UTM builder</div>
+          <div class="row-toolbar">
+            <button type="button" class="btn btn-secondary" id="add-row-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add row
+            </button>
+            <details class="bulk-add">
+              <summary class="btn btn-secondary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add multiple rows
+              </summary>
+              <div class="bulk-add-body">
+                <label for="bulk-urls">Paste one Page URL per line — each becomes a new row</label>
+                <textarea id="bulk-urls" rows="4"></textarea>
+                <button type="button" class="btn btn-secondary" id="bulk-add-btn" style="margin-top: 10px">Add rows</button>
+              </div>
+            </details>
+            <button type="submit" class="btn btn-primary" id="generate-btn">Generate UTMs</button>
+          </div>
+        </div>
 
-      <div class="rows-table-scroll">
-        <table class="rows-table" id="rows-table">
-          <caption class="visually-hidden">UTM rows — Page URL, Campaign, GA4 Medium, Campaign Term, Source and Campaign Content per row</caption>
-          <thead>
-            <tr>
-              <th scope="col">Row</th>
-              <th scope="col">Page URL</th>
-              <th scope="col">Campaign</th>
-              <th scope="col">GA4 Medium</th>
-              <th scope="col">Campaign Term</th>
-              <th scope="col">Source</th>
-              <th scope="col">Campaign Content</th>
-              <th scope="col">Generated UTM</th>
-              <th scope="col"><span class="visually-hidden">Actions</span></th>
-            </tr>
-          </thead>
-          <tbody id="rows-tbody"></tbody>
-        </table>
+        <p id="rows-status-region" class="visually-hidden" role="status" aria-live="polite"></p>
+
+        <div class="rows-table-scroll">
+          <div class="table-card">
+            <table class="rows-table" id="rows-table">
+              <caption class="visually-hidden">UTM rows — Page URL, Campaign, GA4 Medium, Campaign Term, Source and Campaign Content per row</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Row</th>
+                  <th scope="col">Page URL</th>
+                  <th scope="col">Campaign</th>
+                  <th scope="col">GA4 Medium</th>
+                  <th scope="col">Campaign Term</th>
+                  <th scope="col">Source</th>
+                  <th scope="col">Campaign Content</th>
+                  <th scope="col">Generated UTM</th>
+                  <th scope="col"><span class="visually-hidden">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody id="rows-tbody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
-    </fieldset>
 
-    <div class="actions">
-      <button type="submit" class="btn btn-primary" id="generate-btn">Generate UTMs</button>
-      <button type="button" class="btn btn-secondary" id="clear-btn">Clear form</button>
-    </div>
-  </form>
+      <div class="actions" style="margin-top: 18px">
+        <button type="button" class="btn btn-secondary" id="clear-btn">Clear form</button>
+      </div>
+    </form>
 
-  <p id="status-region" class="visually-hidden" role="status" aria-live="polite"></p>
+    <p id="status-region" class="visually-hidden" role="status" aria-live="polite"></p>
 
-  <section id="results-section" class="results-section" hidden aria-labelledby="results-heading">
-    <h2 id="results-heading">Results</h2>
-    <p id="results-summary"></p>
+    <section id="results-section" class="card" hidden aria-labelledby="results-heading" style="display: flex; flex-direction: column; gap: 16px;">
+      <h2 id="results-heading" class="visually-hidden">Results</h2>
+      <p id="results-summary"></p>
 
-    <div class="actions">
-      <button type="button" class="btn btn-secondary" id="copy-all-btn">Copy all valid UTMs</button>
-      <button type="button" class="btn btn-secondary" id="export-csv-btn">Export CSV</button>
-      <button type="button" class="btn btn-primary" id="confirm-open-btn">Confirm &amp; add to shared view</button>
-    </div>
-    <p id="save-success-note" class="hint" hidden>UTM's successfully added to shared view. View in tab at the top or export CSV here.</p>
-  </section>
-</main>
+      <div class="actions">
+        <button type="button" class="btn btn-secondary" id="copy-all-btn">Copy all valid UTMs</button>
+        <button type="button" class="btn btn-secondary" id="export-csv-btn">Export CSV</button>
+        <button type="button" class="btn btn-primary" id="confirm-open-btn">Confirm &amp; add to shared view</button>
+      </div>
+      <p id="save-success-note" class="success-banner" hidden>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        UTM's successfully added to shared view. View in tab at the top or export CSV here.
+      </p>
+    </section>
+  </main>
+</div>
 
 <div id="confirm-dialog" class="dialog-overlay" hidden>
   <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-text">

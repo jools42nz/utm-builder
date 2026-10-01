@@ -8,118 +8,187 @@
 <link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png" />
 <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png" />
 <link rel="shortcut icon" href="favicon/favicon.png" />
+<link href="https://fonts.googleapis.com/css2?family=Encode+Sans+Expanded:wght@400;600;700;800&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to main content</a>
 
-<header class="site-header">
-  <div class="site-header-inner">
-    <p class="site-brand">University of Portsmouth</p>
-    <h1>UTM Builder</h1>
+<div class="app-shell">
+  <div class="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo-mark">
+        <svg viewBox="0 0 74.8 74.8" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#009EE2" d="M0,49.8c0,13.8,11.2,24.9,24.9,24.9h24.9V0H0V49.8z"/>
+          <path fill="#621360" d="M49.8,24.9L49.8,24.9H24.9v49.8v24.9l24.9-24.9c13.8,0,24.9-11.2,24.9-24.9C74.8,36.1,63.6,24.9,49.8,24.9z"/>
+          <polygon fill="#0076A6" points="49.8,0 49.8,24.9 24.9,24.9"/>
+          <rect x="24.9" y="24.9" fill="#3C0238" width="24.9" height="49.8"/>
+        </svg>
+      </div>
+      <div>
+        <div class="sidebar-brand-name">UTM Builder</div>
+        <div class="sidebar-brand-sub">RECRUITMENT MARKETING</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav" aria-label="Primary">
+      <a href="index.html">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg>
+        Builder
+      </a>
+      <a href="shared.html">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="10" x2="9" y2="20"/></svg>
+        Shared view
+      </a>
+      <a href="admin.html" aria-current="page">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/></svg>
+        Admin
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-contact">
+        <div class="avatar">BH</div>
+        <div>
+          <div class="sidebar-contact-name">Ben Hunt</div>
+          <div class="sidebar-contact-hint">Questions? Reach out</div>
+        </div>
+      </div>
+    </div>
   </div>
-  <nav aria-label="Primary">
-    <a href="index.html">Builder</a>
-    <a href="shared.html">Shared view</a>
-  </nav>
-</header>
 
-<main id="main">
-  <p class="intro">
-    Add a Campaign, Source or Campaign Content value permanently to the builder's
-    dropdowns, so future users don't have to keep choosing "Other" for something
-    that keeps coming up. This page is restricted to approved admins via
-    Cloudflare Access — anyone else who opens this URL is stopped at Cloudflare's
-    own login wall before this page loads.
-  </p>
+  <main id="main" class="main">
+    <div class="page-head">
+      <div>
+        <h1>Admin</h1>
+        <p class="intro">Add a Campaign, Source or Campaign Content value permanently, so people stop typing "Other" for the same recurring value.</p>
+      </div>
+    </div>
 
-  <p id="admin-status-region" class="visually-hidden" role="status" aria-live="polite"></p>
-  <div id="admin-unauthorized" role="alert" hidden>
-    <p>
-      Not signed in via Cloudflare Access — this page's write API returned 401.
-      If you're testing locally without <code>wrangler pages dev</code>, or the
-      <code>/admin*</code> Access application isn't set up on this deployment yet,
-      see the README's "Admin: promoting 'Other' values" section.
-    </p>
-  </div>
+    <p id="admin-status-region" class="visually-hidden" role="status" aria-live="polite"></p>
 
-  <div id="admin-content" hidden>
-    <p class="muted">Signed in as <strong id="viewer-email"></strong></p>
+    <section class="card" aria-labelledby="manage-users-heading" style="display: flex; flex-direction: column; gap: 18px;">
+      <div class="card-head">
+        <div>
+          <div class="card-label" id="manage-users-heading">Manage users</div>
+          <p class="hint" style="max-width: 520px; margin-top: 6px;">
+            Only 3 admin accounts are expected — everyone else is a general user. No self-service
+            signup: an admin creates every account here, by hand. This list is a local, illustrative
+            mock for now — it will switch to the real accounts system once that's deployed.
+          </p>
+        </div>
+        <span class="pill pill-valid" id="users-badge" style="white-space: nowrap">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          0 accounts · 0 admins
+        </span>
+      </div>
 
-    <section class="field-group" aria-labelledby="add-campaign-heading">
-      <h2 id="add-campaign-heading">Add a Campaign</h2>
-      <form id="add-campaign-form">
+      <div class="list-card" id="users-list"></div>
+
+      <form id="add-user-form" class="add-user-form">
         <div class="field">
-          <label for="new-campaign-value">Campaign name</label>
-          <input type="text" id="new-campaign-value" required />
+          <label for="new-username">Username</label>
+          <input type="text" id="new-username" placeholder="e.g. sam.clarke" required />
         </div>
-        <div class="actions">
-          <button type="submit" class="btn btn-primary">Add campaign</button>
+        <div class="field">
+          <label for="new-password">Password</label>
+          <input type="password" id="new-password" placeholder="At least 8 characters" required />
         </div>
+        <div class="field field-role">
+          <label for="new-role">Role</label>
+          <select id="new-role">
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Add user</button>
       </form>
+      <p id="add-user-error" role="alert" class="field-errors" hidden></p>
     </section>
 
-    <section class="field-group" aria-labelledby="add-source-heading">
-      <h2 id="add-source-heading">Add a Source</h2>
-      <form id="add-source-form">
-        <div class="field">
-          <label for="new-source-term">Campaign Term</label>
-          <select id="new-source-term" required></select>
-          <p class="hint">The new Source is only offered once this Term is picked in the builder.</p>
-        </div>
-        <div class="field">
-          <label for="new-source-value">Source name</label>
-          <input type="text" id="new-source-value" required />
-        </div>
-        <div class="actions">
-          <button type="submit" class="btn btn-primary">Add source</button>
-        </div>
-      </form>
-    </section>
-
-    <section class="field-group" aria-labelledby="add-content-heading">
-      <h2 id="add-content-heading">Add Campaign Content</h2>
-      <form id="add-content-form">
-        <div class="field">
-          <label for="new-content-value">Campaign Content value</label>
-          <input type="text" id="new-content-value" required />
-        </div>
-        <div class="actions">
-          <button type="submit" class="btn btn-primary">Add content</button>
-        </div>
-      </form>
-    </section>
-
-    <section class="field-group" aria-labelledby="admin-access-heading">
-      <h2 id="admin-access-heading">Admin access</h2>
-      <p class="hint">
-        Who can reach this page — backed by Cloudflare Access, so adding or removing someone here updates the
-        same allow-list as the Zero Trust dashboard. "Role" is a label only; every admin has identical access.
+    <div id="admin-unauthorized" role="alert" class="card" hidden>
+      <p>
+        Not signed in via Cloudflare Access — this page's write API returned 401.
+        If you're testing locally without <code>wrangler pages dev</code>, or the
+        <code>/admin*</code> Access application isn't set up on this deployment yet,
+        see the README's "Admin: promoting 'Other' values" section.
       </p>
-      <p id="admin-access-error" role="alert" hidden></p>
-      <div id="admin-access-list"></div>
-      <form id="invite-admin-form">
-        <div class="field">
-          <label for="invite-email">Invite by email</label>
-          <input type="email" id="invite-email" required />
-        </div>
-        <div class="field">
-          <label for="invite-role">Role label</label>
-          <input type="text" id="invite-role" value="Admin" />
-        </div>
-        <div class="actions">
-          <button type="submit" class="btn btn-primary">Send invite</button>
-        </div>
-      </form>
-    </section>
+    </div>
 
-    <section class="field-group" aria-labelledby="current-overrides-heading">
-      <h2 id="current-overrides-heading">Admin-added values</h2>
-      <p class="hint">Only values added here can be removed — the base lists from js/rules.js aren't editable from this page.</p>
-      <div id="overrides-list"></div>
-    </section>
-  </div>
-</main>
+    <div id="admin-content" hidden style="display: flex; flex-direction: column; gap: 22px;">
+      <div class="viewer-badge" style="align-self: flex-start">
+        <div class="avatar">JW</div>
+        <div>
+          <div class="viewer-badge-label">Signed in as</div>
+          <div class="viewer-badge-name" id="viewer-email"></div>
+        </div>
+      </div>
+
+      <div class="card-grid-3">
+        <section class="card" aria-labelledby="add-campaign-heading" style="display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; align-items: center; gap: 10px">
+            <div class="mini-card-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </div>
+            <h2 id="add-campaign-heading" style="font-size: 14px">Add a Campaign</h2>
+          </div>
+          <form id="add-campaign-form" style="display: flex; flex-direction: column; gap: 14px;">
+            <div class="field">
+              <label for="new-campaign-value">Campaign name</label>
+              <input type="text" id="new-campaign-value" placeholder="e.g. clearing-2026-boost" required />
+            </div>
+            <button type="submit" class="btn btn-primary">Add campaign</button>
+          </form>
+        </section>
+
+        <section class="card" aria-labelledby="add-source-heading" style="display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; align-items: center; gap: 10px">
+            <div class="mini-card-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </div>
+            <h2 id="add-source-heading" style="font-size: 14px">Add a Source</h2>
+          </div>
+          <form id="add-source-form" style="display: flex; flex-direction: column; gap: 14px;">
+            <div class="field">
+              <label for="new-source-term">Campaign Term</label>
+              <select id="new-source-term" required></select>
+              <p class="hint">The new Source is only offered once this Term is picked in the builder.</p>
+            </div>
+            <div class="field">
+              <label for="new-source-value">Source name</label>
+              <input type="text" id="new-source-value" placeholder="e.g. tiktok-ads" required />
+            </div>
+            <button type="submit" class="btn btn-primary">Add source</button>
+          </form>
+        </section>
+
+        <section class="card" aria-labelledby="add-content-heading" style="display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; align-items: center; gap: 10px">
+            <div class="mini-card-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </div>
+            <h2 id="add-content-heading" style="font-size: 14px">Add Campaign Content</h2>
+          </div>
+          <form id="add-content-form" style="display: flex; flex-direction: column; gap: 14px;">
+            <div class="field">
+              <label for="new-content-value">Campaign Content value</label>
+              <input type="text" id="new-content-value" placeholder="e.g. clearing-hotline-banner" required />
+            </div>
+            <button type="submit" class="btn btn-primary">Add content</button>
+          </form>
+        </section>
+      </div>
+
+      <section class="card" aria-labelledby="current-overrides-heading" style="display: flex; flex-direction: column; gap: 16px;">
+        <div>
+          <div class="card-label" id="current-overrides-heading">Admin-added values</div>
+          <p class="hint">Only values added here can be removed — the base lists from js/rules.js aren't editable from this page.</p>
+        </div>
+        <div id="overrides-list"></div>
+      </section>
+    </div>
+  </main>
+</div>
 
 <script type="module" src="js/admin-app.js"></script>
 </body>

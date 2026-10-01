@@ -14,9 +14,21 @@ const campaignContentInput = document.getElementById('filter-campaignContent');
 const tableContainer = document.getElementById('shared-table-container');
 const summary = document.getElementById('shared-summary');
 const statusRegion = document.getElementById('shared-status-region');
+const activeFiltersEl = document.getElementById('active-filters');
 
 const textFilters = [setUpByInput, pageUrlInput, campaignInput, sourceInput, campaignContentInput];
 const allFilterEls = [searchInput, ...textFilters, dateInput, gaMediumSelect, campaignTermSelect];
+const FILTER_LABELS = {
+  search: 'Search',
+  'filter-setUpBy': 'Set Up By',
+  'filter-date': 'Date',
+  'filter-pageUrl': 'Page URL',
+  'filter-campaign': 'Campaign',
+  'filter-gaMedium': 'GA4 Medium',
+  'filter-campaignTerm': 'Campaign Term',
+  'filter-source': 'Source',
+  'filter-campaignContent': 'Campaign Content',
+};
 
 let allRecords = [];
 
@@ -56,12 +68,52 @@ function matchesFilters(record) {
   return true;
 }
 
+const ICON_COPY = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1"/></svg>';
+const ICON_COPIED = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+const ICON_REMOVE_CHIP = '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+let lastActiveFiltersKey = null;
+
+function renderActiveFilters() {
+  const active = allFilterEls.filter((el) => el.value);
+  // Clicking a chip blurs whichever filter field is currently focused, which
+  // fires a redundant 'change' on it (its value hasn't actually changed
+  // since the last 'input') right between the click's mousedown and mouseup.
+  // Rebuilding the chip DOM there would detach the very node being clicked,
+  // and the browser drops the click entirely. Skipping the rebuild when the
+  // active-filter set hasn't changed keeps that node alive for the click.
+  const key = active.map((el) => `${el.id}=${el.value}`).join('|');
+  if (key === lastActiveFiltersKey) return;
+  lastActiveFiltersKey = key;
+
+  const chips = active.map((el) => {
+    const label = FILTER_LABELS[el.id] || el.id;
+    const value = el.tagName === 'SELECT' ? el.options[el.selectedIndex].textContent : el.value;
+    return `<button type="button" class="chip" data-clear="${el.id}">${escapeHtml(label)}: ${escapeHtml(value)} ${ICON_REMOVE_CHIP}</button>`;
+  });
+
+  if (chips.length === 0) {
+    activeFiltersEl.innerHTML = '';
+    return;
+  }
+
+  activeFiltersEl.innerHTML = `<span class="active-filters-label">Active filters:</span>${chips.join('')}`;
+  activeFiltersEl.querySelectorAll('.chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const el = document.getElementById(chip.dataset.clear);
+      el.value = '';
+      render();
+    });
+  });
+}
+
 function render() {
   const filtered = allRecords.filter(matchesFilters);
   summary.textContent = `Showing ${filtered.length} of ${allRecords.length} UTM(s).`;
+  renderActiveFilters();
 
   if (filtered.length === 0) {
-    tableContainer.innerHTML = '<p>No UTMs match the current filters.</p>';
+    tableContainer.innerHTML = '<p style="padding: 24px">No UTMs match the current filters.</p>';
     return;
   }
 
@@ -70,16 +122,16 @@ function render() {
   const rowsHtml = sorted
     .map(
       (r) => `<tr>
-        <td>${escapeHtml(r.setUpBy)}</td>
-        <td>${escapeHtml(r.date)}</td>
-        <td class="cell-url">${escapeHtml(r.pageUrl)}</td>
-        <td>${escapeHtml(r.campaign)}</td>
-        <td>${escapeHtml(r.gaMedium)}</td>
-        <td>${escapeHtml(r.campaignTerm)}</td>
-        <td>${escapeHtml(r.source)}</td>
-        <td>${escapeHtml(r.campaignContent)}</td>
-        <td class="cell-utm"><code class="utm-output">${escapeHtml(r.utm)}</code>
-          <button type="button" class="btn btn-secondary btn-small copy-single" data-utm="${escapeHtml(r.utm)}">Copy</button>
+        <td data-label="Set Up By">${escapeHtml(r.setUpBy)}</td>
+        <td data-label="Date">${escapeHtml(r.date)}</td>
+        <td class="cell-url" data-label="Page URL">${escapeHtml(r.pageUrl)}</td>
+        <td data-label="Campaign">${escapeHtml(r.campaign)}</td>
+        <td data-label="GA4 Medium">${escapeHtml(r.gaMedium)}</td>
+        <td data-label="Campaign Term">${escapeHtml(r.campaignTerm)}</td>
+        <td data-label="Source">${escapeHtml(r.source)}</td>
+        <td data-label="Campaign Content">${escapeHtml(r.campaignContent)}</td>
+        <td class="cell-utm" data-label="UTM"><code class="utm-output">${escapeHtml(r.utm)}</code>
+          <button type="button" class="btn-icon copy-single" data-utm="${escapeHtml(r.utm)}" aria-label="Copy UTM">${ICON_COPY}</button>
         </td>
       </tr>`
     )
@@ -106,8 +158,12 @@ function render() {
   tableContainer.querySelectorAll('.copy-single').forEach((btn) => {
     btn.addEventListener('click', async () => {
       await navigator.clipboard.writeText(btn.dataset.utm);
-      btn.textContent = 'Copied!';
-      setTimeout(() => (btn.textContent = 'Copy'), 1500);
+      btn.innerHTML = ICON_COPIED;
+      btn.setAttribute('aria-label', 'Copied');
+      setTimeout(() => {
+        btn.innerHTML = ICON_COPY;
+        btn.setAttribute('aria-label', 'Copy UTM');
+      }, 1500);
     });
   });
 }
