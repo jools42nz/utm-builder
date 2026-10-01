@@ -541,16 +541,150 @@ textarea[aria-invalid='true'] {
 }
 
 /* ---------------------------------------------------------------------
-   Tables
+   Builder rows — each row is a collapsible card instead of a table row,
+   so there's never a horizontal scrollbar: the field grid wraps instead.
 --------------------------------------------------------------------- */
 
-.table-card {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow-x: auto;
+.rows-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.rows-table-scroll,
+.row-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+}
+
+.row-card[data-status='error'] {
+  border-color: var(--crimson);
+}
+
+.row-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  flex-wrap: wrap;
+}
+
+.row-number {
+  flex: 0 0 auto;
+  width: 18px;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 13px;
+  text-align: right;
+}
+
+.row-toggle {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.row-toggle:hover {
+  background: var(--bg);
+  color: var(--purple);
+}
+
+.row-toggle svg {
+  transition: transform 0.15s ease;
+}
+
+.row-toggle[aria-expanded='false'] svg {
+  transform: rotate(-90deg);
+}
+
+.row-pageUrl {
+  flex: 1 1 200px;
+  min-width: 140px;
+  font-weight: 700;
+  min-height: 36px;
+  padding: 7px 10px;
+}
+
+.row-summary {
+  flex: 2 1 220px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-status {
+  flex: 0 0 auto;
+}
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.row-details {
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  padding: 16px 16px 16px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.row-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 14px;
+}
+
+.row-fields-grid .field {
+  margin-bottom: 0;
+}
+
+.row-fields-grid label {
+  font-size: 11px;
+  color: var(--purple-dark);
+}
+
+.row-fields-grid select,
+.row-fields-grid input {
+  min-height: 38px;
+  padding: 7px 10px;
+  font-size: 13px;
+  background: var(--white);
+}
+
+.row-fields-grid select:disabled {
+  background: var(--bg);
+  color: var(--muted);
+}
+
+.row-fields-grid .row-campaign-other,
+.row-fields-grid .row-source-other,
+.row-fields-grid .row-campaignContent-other {
+  margin-top: 6px;
+}
+
+.row-utm-output {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+
 #shared-table-container {
   overflow-x: auto;
 }
@@ -560,16 +694,10 @@ table {
   width: 100%;
 }
 
-.rows-table {
-  min-width: 1000px;
-}
-
 .results-table-wide {
   min-width: 1500px;
 }
 
-.rows-table th,
-.rows-table td,
 .results-table th,
 .results-table td {
   text-align: left;
@@ -578,12 +706,10 @@ table {
   border-top: 1px solid var(--border);
 }
 
-.rows-table thead tr,
 .results-table thead tr {
   background: var(--purple-tint);
 }
 
-.rows-table thead th,
 .results-table thead th {
   font-size: 11px;
   font-weight: 800;
@@ -594,42 +720,8 @@ table {
   border-top: none;
 }
 
-.rows-table tbody tr:nth-child(even),
 .results-table tbody tr:nth-child(even) {
   background: #fbfafc;
-}
-
-.rows-table td input,
-.rows-table td select {
-  min-width: 9rem;
-  min-height: 38px;
-  padding: 6px 9px;
-  font-size: 13px;
-}
-
-.rows-table .row-pageUrl,
-.rows-table .row-campaign {
-  min-width: 13rem;
-}
-
-.rows-table select:disabled {
-  background: var(--bg);
-  color: var(--muted);
-}
-
-.rows-table .row-campaign-other,
-.rows-table .row-source-other,
-.rows-table .row-campaignContent-other {
-  margin-top: 0.4rem;
-}
-
-.rows-table .row-result {
-  min-width: 14rem;
-}
-
-.rows-table .row-actions {
-  display: flex;
-  gap: 6px;
 }
 
 .results-table-wide .cell-url,
@@ -1071,6 +1163,34 @@ table {
 
   .batch-bar-fields {
     flex-direction: column;
+  }
+
+  .row-header {
+    padding: 10px 12px;
+    row-gap: 8px;
+  }
+
+  .row-number {
+    width: auto;
+  }
+
+  .row-pageUrl {
+    flex-basis: 100%;
+    order: 1;
+  }
+
+  .row-summary {
+    flex-basis: 100%;
+    white-space: normal;
+    order: 2;
+  }
+
+  .row-actions {
+    margin-left: 0;
+  }
+
+  .row-details {
+    padding: 14px 12px 16px;
   }
 
   .batch-bar-fields .field {
