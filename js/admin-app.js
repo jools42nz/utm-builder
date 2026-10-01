@@ -1,8 +1,8 @@
 import { TERM_OPTIONS } from './rules.js';
 import { escapeHtml } from './utils.js';
+import { listUsers, addUser, resetPassword, removeUser } from './usersStore.js';
 
 const API = '/admin/api/rules';
-const ACCESS_API = '/admin/api/access';
 
 const statusRegion = document.getElementById('admin-status-region');
 const unauthorizedEl = document.getElementById('admin-unauthorized');
@@ -10,15 +10,30 @@ const contentEl = document.getElementById('admin-content');
 const viewerEmailEl = document.getElementById('viewer-email');
 const overridesListEl = document.getElementById('overrides-list');
 const termSelect = document.getElementById('new-source-term');
-const accessErrorEl = document.getElementById('admin-access-error');
-const accessListEl = document.getElementById('admin-access-list');
+
+const usersListEl = document.getElementById('users-list');
+const usersBadgeEl = document.getElementById('users-badge');
+const addUserForm = document.getElementById('add-user-form');
+const addUserErrorEl = document.getElementById('add-user-error');
 
 let store = { campaigns: [], content: [], sources: [] };
-let viewerEmail = '';
-let admins = [];
+
+const AVATAR_COLORS = ['var(--purple)', 'var(--blue)', 'var(--orange)', 'var(--green)', '#8a8493'];
 
 function announce(message) {
   statusRegion.textContent = message;
+}
+
+function initials(username) {
+  const parts = username.split(/[._-]/).filter(Boolean);
+  const letters = parts.length > 1 ? parts[0][0] + parts[1][0] : username.slice(0, 2);
+  return letters.toUpperCase();
+}
+
+function avatarColor(username) {
+  let hash = 0;
+  for (const ch of username) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
 }
 
 function formatEntry(entry) {
@@ -34,17 +49,25 @@ function renderOverridesList() {
 
   overridesListEl.innerHTML = sections
     .map(({ title, kind, entries }) => {
-      if (entries.length === 0) return `<h3>${title}</h3><p class="muted">None added yet.</p>`;
-      const items = entries
+      const count = entries.length;
+      if (count === 0) {
+        return `<div class="override-section"><div class="override-section-title">${title} · 0</div><p class="muted">None added yet.</p></div>`;
+      }
+      const rows = entries
         .map(
-          (entry) => `<li>
-            <span>${escapeHtml(entry.value)}${entry.term ? ` <span class="muted">(under Term "${escapeHtml(entry.term)}")</span>` : ''}</span>
-            <span class="muted">Added by ${formatEntry(entry)}</span>
-            <button type="button" class="btn btn-secondary btn-small remove-override-btn" data-kind="${kind}" data-value="${escapeHtml(entry.value)}" data-term="${escapeHtml(entry.term || '')}">Remove</button>
-          </li>`
+          (entry) => `<div class="override-row">
+            <div>
+              <span class="list-row-name">${escapeHtml(entry.value)}</span>
+              ${entry.term ? `<span class="muted"> under Term "${escapeHtml(entry.term)}"</span>` : ''}
+              <span class="muted"> · Added by ${formatEntry(entry)}</span>
+            </div>
+            <button type="button" class="btn-icon btn-icon-danger remove-override-btn" data-kind="${kind}" data-value="${escapeHtml(entry.value)}" data-term="${escapeHtml(entry.term || '')}" aria-label="Remove ${escapeHtml(entry.value)}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+            </button>
+          </div>`
         )
         .join('');
-      return `<h3>${title}</h3><ul class="override-list">${items}</ul>`;
+      return `<div class="override-section"><div class="override-section-title">${title} · ${count}</div>${rows}</div>`;
     })
     .join('');
 
@@ -83,100 +106,90 @@ async function addOverride(kind, value, term) {
   renderOverridesList();
 }
 
-function formatAdminMeta(admin) {
-  if (!admin.addedBy) return 'Added directly in the Cloudflare dashboard';
-  return `Added by ${escapeHtml(admin.addedBy)} on ${escapeHtml(new Date(admin.addedAt).toLocaleDateString('en-GB'))}`;
-}
+// ---- Manage users (local mock — see js/usersStore.js) ----
 
-function renderAdminsList() {
-  if (admins.length === 0) {
-    accessListEl.innerHTML = '<p class="muted">No admins loaded.</p>';
+function renderUsersList() {
+  const users = listUsers();
+  const adminCount = users.filter((u) => u.role === 'admin').length;
+  usersBadgeEl.textContent = `${users.length} account${users.length === 1 ? '' : 's'} · ${adminCount} admin${adminCount === 1 ? '' : 's'}`;
+
+  if (users.length === 0) {
+    usersListEl.innerHTML = '<p class="muted" style="padding: 16px">No users added yet — add the first one below.</p>';
     return;
   }
-  const items = admins
-    .map((admin) => {
-      const isSelf = admin.email.toLowerCase() === viewerEmail.toLowerCase();
-      const isLast = admins.length <= 1;
-      const removeDisabled = isSelf || isLast;
-      const removeTitle = isSelf ? "You can't remove your own admin access" : isLast ? "Can't remove the last remaining admin" : 'Remove';
-      return `<li>
-        <span>${escapeHtml(admin.email)}${isSelf ? ' <span class="muted">(you)</span>' : ''}</span>
-        <span class="muted">${escapeHtml(admin.role)} · ${formatAdminMeta(admin)}</span>
-        <button type="button" class="btn btn-secondary btn-small remove-admin-btn" data-email="${escapeHtml(admin.email)}" ${removeDisabled ? 'disabled' : ''} title="${escapeHtml(removeTitle)}">Remove</button>
-      </li>`;
+
+  const sorted = [...users].sort((a, b) => a.username.localeCompare(b.username));
+  usersListEl.innerHTML = sorted
+    .map((user) => {
+      const isLastAdmin = user.role === 'admin' && adminCount <= 1;
+      return `<div class="list-row">
+        <div class="list-row-main">
+          <div class="avatar" style="background: ${avatarColor(user.username)}">${escapeHtml(initials(user.username))}</div>
+          <div>
+            <div class="list-row-name">${escapeHtml(user.username)}</div>
+            <div class="list-row-meta">Added ${escapeHtml(new Date(user.addedAt).toLocaleDateString('en-GB'))}</div>
+          </div>
+        </div>
+        <div class="list-row-end">
+          <span class="pill ${user.role === 'admin' ? 'pill-role-admin' : 'pill-role-user'}">${user.role === 'admin' ? 'Admin' : 'User'}</span>
+          <button type="button" class="btn-icon reset-password-btn" data-username="${escapeHtml(user.username)}" aria-label="Reset password for ${escapeHtml(user.username)}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><line x1="10.5" y1="12.5" x2="19" y2="4"/><line x1="15" y1="9" x2="18" y2="12"/></svg>
+          </button>
+          <button type="button" class="btn-icon btn-icon-danger remove-user-btn" data-username="${escapeHtml(user.username)}" ${isLastAdmin ? 'disabled' : ''} title="${isLastAdmin ? "Can't remove the last remaining admin" : 'Remove'}" aria-label="Remove ${escapeHtml(user.username)}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+          </button>
+        </div>
+      </div>`;
     })
     .join('');
-  accessListEl.innerHTML = `<ul class="override-list">${items}</ul>`;
 
-  accessListEl.querySelectorAll('.remove-admin-btn').forEach((btn) => {
-    btn.addEventListener('click', () => removeAdmin(btn.dataset.email));
+  usersListEl.querySelectorAll('.reset-password-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const username = btn.dataset.username;
+      const password = window.prompt(`New password for ${username} (at least 8 characters):`);
+      if (password === null) return;
+      try {
+        resetPassword(username, password);
+        announce(`Password updated for ${username}.`);
+      } catch (err) {
+        announce(`Could not update password: ${err.message}`);
+      }
+    });
+  });
+
+  usersListEl.querySelectorAll('.remove-user-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const username = btn.dataset.username;
+      if (!window.confirm(`Remove ${username}? This can't be undone.`)) return;
+      try {
+        removeUser(username);
+        renderUsersList();
+        announce(`Removed ${username}.`);
+      } catch (err) {
+        announce(`Could not remove ${username}: ${err.message}`);
+      }
+    });
   });
 }
 
-function showAccessError(message) {
-  accessErrorEl.hidden = !message;
-  accessErrorEl.textContent = message || '';
-}
-
-async function fetchAdmins() {
-  try {
-    const res = await fetch(ACCESS_API);
-    if (res.status === 501) {
-      const body = await res.json().catch(() => ({}));
-      showAccessError(body.error || 'Admin access management is not configured yet.');
-      return;
-    }
-    if (!res.ok) throw new Error(`Request failed (${res.status}).`);
-    const data = await res.json();
-    admins = data.admins;
-    showAccessError('');
-    renderAdminsList();
-  } catch (err) {
-    showAccessError(`Could not load admin access: ${err.message}`);
-  }
-}
-
-async function removeAdmin(email) {
-  try {
-    const res = await fetch(ACCESS_API, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error || `Request failed (${res.status}).`);
-    admins = body.admins;
-    renderAdminsList();
-    announce(`Removed ${email} from admin access.`);
-  } catch (err) {
-    announce(`Could not remove ${email}: ${err.message}`);
-  }
-}
-
-document.getElementById('invite-admin-form').addEventListener('submit', async (event) => {
+addUserForm.addEventListener('submit', (event) => {
   event.preventDefault();
-  const emailInput = document.getElementById('invite-email');
-  const roleInput = document.getElementById('invite-role');
-  const email = emailInput.value.trim();
-  const role = roleInput.value.trim() || 'Admin';
-  if (!email) return;
+  addUserErrorEl.hidden = true;
+  const username = document.getElementById('new-username').value;
+  const password = document.getElementById('new-password').value;
+  const role = document.getElementById('new-role').value;
   try {
-    const res = await fetch(ACCESS_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, role }),
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error || `Request failed (${res.status}).`);
-    admins = body.admins;
-    renderAdminsList();
-    emailInput.value = '';
-    roleInput.value = 'Admin';
-    announce(`Invited ${email} as ${role}.`);
+    addUser({ username, password, role });
+    addUserForm.reset();
+    renderUsersList();
+    announce(`Added ${username.trim()} as ${role === 'admin' ? 'Admin' : 'User'}.`);
   } catch (err) {
-    announce(`Could not invite ${email}: ${err.message}`);
+    addUserErrorEl.hidden = false;
+    addUserErrorEl.textContent = err.message;
   }
 });
+
+// ---- Add Campaign / Source / Campaign Content ----
 
 termSelect.innerHTML = TERM_OPTIONS.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
 
@@ -224,6 +237,8 @@ document.getElementById('add-content-form').addEventListener('submit', async (ev
 });
 
 async function init() {
+  renderUsersList();
+
   try {
     const res = await fetch(API);
     if (res.status === 401) {
@@ -233,11 +248,9 @@ async function init() {
     if (!res.ok) throw new Error(`Request failed (${res.status}).`);
     const data = await res.json();
     store = { campaigns: data.campaigns, content: data.content, sources: data.sources };
-    viewerEmail = data.viewerEmail;
     viewerEmailEl.textContent = data.viewerEmail;
     contentEl.hidden = false;
     renderOverridesList();
-    await fetchAdmins();
   } catch (err) {
     unauthorizedEl.hidden = false;
     unauthorizedEl.querySelector('p').textContent = `Could not load admin data: ${err.message}`;

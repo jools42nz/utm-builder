@@ -155,8 +155,14 @@ function createRowElement() {
     </td>
     <td class="row-result"></td>
     <td>
-      <button type="button" class="btn btn-secondary btn-small duplicate-row-btn" data-label="Duplicate row">Duplicate</button>
-      <button type="button" class="btn btn-secondary btn-small remove-row-btn" data-label="Remove row">Remove</button>
+      <div class="row-actions">
+        <button type="button" class="btn-icon duplicate-row-btn" data-label="Duplicate row" aria-label="Duplicate row">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1"/></svg>
+        </button>
+        <button type="button" class="btn-icon btn-icon-danger remove-row-btn" data-label="Remove row" aria-label="Remove row">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+        </button>
+      </div>
     </td>
   `;
 
@@ -257,10 +263,15 @@ function getRowData(tr) {
   };
 }
 
+const ICON_CHECK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+const ICON_WARN = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 18H2L12 3z"/><line x1="12" y1="10" x2="12" y2="14"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+const ICON_COPY = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1"/></svg>';
+const ICON_COPIED = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+
 function writeRowResult(tr, result) {
   const cell = tr.querySelector('.row-result');
   if (result.errors.length > 0) {
-    cell.innerHTML = `<span class="badge badge-error">Error</span><ul class="row-error-list">${result.errors
+    cell.innerHTML = `<span class="pill pill-error">Error</span><ul class="row-error-list">${result.errors
       .map((e) => `<li>${escapeHtml(e.message)}</li>`)
       .join('')}</ul>`;
     for (const err of result.errors) {
@@ -269,13 +280,20 @@ function writeRowResult(tr, result) {
     }
     return;
   }
-  const badge = result.isDuplicate ? '<span class="badge badge-warn">Duplicate</span>' : '<span class="badge badge-valid">Valid</span>';
+  const badge = result.isDuplicate
+    ? `<span class="pill pill-warn">${ICON_WARN} Duplicate</span>`
+    : `<span class="pill pill-valid">${ICON_CHECK} Valid</span>`;
   const dupNote = result.isDuplicate ? `<p class="row-duplicate-note">${escapeHtml(result.duplicateReason)}</p>` : '';
-  cell.innerHTML = `${badge}${dupNote}<code class="utm-output">${escapeHtml(result.utm)}</code><button type="button" class="btn btn-secondary btn-small copy-single" data-utm="${escapeHtml(result.utm)}">Copy</button>`;
+  cell.innerHTML = `<div>${badge}</div>${dupNote}<div class="cell-utm"><code class="utm-output">${escapeHtml(result.utm)}</code><button type="button" class="btn-icon copy-single" data-utm="${escapeHtml(result.utm)}" aria-label="Copy generated UTM">${ICON_COPY}</button></div>`;
   cell.querySelector('.copy-single').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
     await navigator.clipboard.writeText(result.utm);
-    e.target.textContent = 'Copied!';
-    setTimeout(() => (e.target.textContent = 'Copy'), 1500);
+    btn.innerHTML = ICON_COPIED;
+    btn.setAttribute('aria-label', 'Copied');
+    setTimeout(() => {
+      btn.innerHTML = ICON_COPY;
+      btn.setAttribute('aria-label', 'Copy generated UTM');
+    }, 1500);
   });
 }
 
@@ -353,11 +371,12 @@ function renderBatchFieldErrors(errors) {
 function summarize(results) {
   const errorCount = results.filter((r) => r.errors.length > 0).length;
   const duplicateCount = results.filter((r) => r.errors.length === 0 && r.isDuplicate).length;
-  const validCount = results.length - errorCount;
-  const parts = [`${results.length} row(s) generated`, `${validCount} valid`];
-  if (errorCount > 0) parts.push(`${errorCount} with errors`);
-  if (duplicateCount > 0) parts.push(`${duplicateCount} duplicate(s)`);
-  return parts.join(', ') + '.';
+  const validCount = results.length - errorCount - duplicateCount;
+  const pills = [`<span class="pill pill-stat pill-neutral">${results.length} row${results.length === 1 ? '' : 's'} generated</span>`];
+  if (validCount > 0) pills.push(`<span class="pill pill-stat pill-valid">${validCount} valid</span>`);
+  if (duplicateCount > 0) pills.push(`<span class="pill pill-stat pill-warn">${duplicateCount} duplicate${duplicateCount === 1 ? '' : 's'}</span>`);
+  if (errorCount > 0) pills.push(`<span class="pill pill-stat pill-error">${errorCount} with error${errorCount === 1 ? '' : 's'}</span>`);
+  return pills.join('');
 }
 
 form.addEventListener('submit', async (event) => {
@@ -391,7 +410,7 @@ form.addEventListener('submit', async (event) => {
   lastResults = results;
   lastBatch = batch;
 
-  resultsSummary.textContent = summarize(results);
+  resultsSummary.innerHTML = summarize(results);
   resultsSection.hidden = false;
   confirmOpenBtn.disabled = !results.some((r) => r.errors.length === 0 && r.utm);
   announce(resultsSummary.textContent);
