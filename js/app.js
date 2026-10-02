@@ -12,7 +12,10 @@ const ICON_WARN = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" s
 const ICON_COPY = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1"/></svg>';
 const ICON_COPIED = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 const ICON_CHEVRON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
-const ICON_DUPLICATE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1"/></svg>';
+// Duplicate reads as "×2" rather than an icon, since the copy-UTM button right next
+// to it already uses the standard overlapping-squares "copy" glyph — two buttons
+// with the same icon side by side were impossible to tell apart at a glance.
+const DUPLICATE_LABEL = '<span aria-hidden="true">&times;2</span>';
 const ICON_REMOVE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
 
 const form = document.getElementById('builder-form');
@@ -182,9 +185,9 @@ function createRowElement() {
       <span class="row-summary">Not started yet</span>
       <span class="row-status"></span>
       <div class="row-actions">
-        <button type="button" class="btn-icon copy-utm-btn" aria-label="Copy generated UTM" hidden>${ICON_COPY}</button>
-        <button type="button" class="btn-icon duplicate-row-btn" data-label="Duplicate row" aria-label="Duplicate row">${ICON_DUPLICATE}</button>
-        <button type="button" class="btn-icon btn-icon-danger remove-row-btn" data-label="Remove row" aria-label="Remove row">${ICON_REMOVE}</button>
+        <button type="button" class="btn-icon copy-utm-btn" title="Copy" aria-label="Copy generated UTM" hidden>${ICON_COPY}</button>
+        <button type="button" class="btn-icon btn-icon-text duplicate-row-btn" title="Duplicate" data-label="Duplicate row" aria-label="Duplicate row">${DUPLICATE_LABEL}</button>
+        <button type="button" class="btn-icon btn-icon-danger remove-row-btn" title="Remove" data-label="Remove row" aria-label="Remove row">${ICON_REMOVE}</button>
       </div>
     </div>
     <div class="row-details" id="row-details-${id}">
