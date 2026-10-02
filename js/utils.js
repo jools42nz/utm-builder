@@ -17,6 +17,14 @@ export function generateId() {
   });
 }
 
+/** Formats an ISO "YYYY-MM-DD" date (as produced by <input type="date">) as UK "DD-MM-YYYY". Returns the input unchanged if it doesn't match. */
+export function formatDateUK(isoDate) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate || '');
+  if (!match) return isoDate || '';
+  const [, year, month, day] = match;
+  return `${day}-${month}-${year}`;
+}
+
 export function toCsvValue(value) {
   const str = String(value ?? '');
   if (/[",\n]/.test(str)) return `"${str.replace(/"/g, '""')}"`;

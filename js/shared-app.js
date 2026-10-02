@@ -1,6 +1,6 @@
 import { MEDIUM_OPTIONS, TERM_OPTIONS } from './rules.js';
 import { dataAccess } from './dataAccess.js';
-import { escapeHtml, rowsToCsv, downloadFile } from './utils.js';
+import { escapeHtml, rowsToCsv, downloadFile, formatDateUK } from './utils.js';
 
 const searchInput = document.getElementById('search');
 const setUpByInput = document.getElementById('filter-setUpBy');
@@ -88,7 +88,7 @@ function renderActiveFilters() {
 
   const chips = active.map((el) => {
     const label = FILTER_LABELS[el.id] || el.id;
-    const value = el.tagName === 'SELECT' ? el.options[el.selectedIndex].textContent : el.value;
+    const value = el.tagName === 'SELECT' ? el.options[el.selectedIndex].textContent : el.id === 'filter-date' ? formatDateUK(el.value) : el.value;
     return `<button type="button" class="chip" data-clear="${el.id}">${escapeHtml(label)}: ${escapeHtml(value)} ${ICON_REMOVE_CHIP}</button>`;
   });
 
@@ -123,7 +123,7 @@ function render() {
     .map(
       (r) => `<tr>
         <td data-label="Set Up By">${escapeHtml(r.setUpBy)}</td>
-        <td data-label="Date">${escapeHtml(r.date)}</td>
+        <td data-label="Date">${escapeHtml(formatDateUK(r.date))}</td>
         <td class="cell-url" data-label="Page URL">${escapeHtml(r.pageUrl)}</td>
         <td data-label="Campaign">${escapeHtml(r.campaign)}</td>
         <td data-label="GA4 Medium">${escapeHtml(r.gaMedium)}</td>
