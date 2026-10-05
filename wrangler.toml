@@ -5,7 +5,18 @@ compatibility_date = "2026-07-27"
 # Bound and live. Still unused at runtime until js/dataAccess.js's BACKEND
 # constant is set to 'cloudflare' — the app defaults to a localStorage-only
 # mock backend that needs no Cloudflare setup at all. Also backs the
-# admin-added rule overrides (functions/admin/api/rules.js).
+# admin-added rule overrides (functions/admin/api/rules.js) and the user
+# accounts store (functions/_lib/users.js), under their own KV keys.
 [[kv_namespaces]]
 binding = "UTM_RECORDS"
 id = "3ba579c4196c4d35942de027d992f8a0"
+
+# Account-based login (functions/_middleware.js, functions/api/login.js,
+# functions/_lib/session.js) needs one secret — sensitive, so it doesn't
+# belong here in wrangler.toml. Set it once via:
+#   npx wrangler pages secret put SESSION_SECRET
+# It just needs to be long and random (e.g. `openssl rand -hex 32`) — it's
+# never typed by anyone, only used to sign the session cookie. User accounts
+# themselves (including the first 3 admins) live in the UTM_RECORDS KV
+# namespace above, under the "users" key — see scripts/seed-admins.mjs and
+# README "Authentication" for how to create them.
