@@ -1,13 +1,14 @@
 import { TERM_OPTIONS } from './rules.js';
 import { escapeHtml } from './utils.js';
-import { listUsers, addUser, resetPassword, removeUser } from './usersStore.js';
 
-const API = '/admin/api/rules';
+const RULES_API = '/admin/api/rules';
+const USERS_API = '/admin/api/users';
 
 const statusRegion = document.getElementById('admin-status-region');
 const unauthorizedEl = document.getElementById('admin-unauthorized');
 const contentEl = document.getElementById('admin-content');
-const viewerEmailEl = document.getElementById('viewer-email');
+const viewerAvatarEl = document.getElementById('viewer-avatar');
+const viewerUsernameEl = document.getElementById('viewer-username');
 const overridesListEl = document.getElementById('overrides-list');
 const termSelect = document.getElementById('new-source-term');
 
@@ -17,6 +18,7 @@ const addUserForm = document.getElementById('add-user-form');
 const addUserErrorEl = document.getElementById('add-user-error');
 
 let store = { campaigns: [], content: [], sources: [] };
+let currentUsername = '';
 
 const AVATAR_COLORS = ['var(--purple)', 'var(--blue)', 'var(--orange)', 'var(--green)', '#8a8493'];
 
@@ -78,7 +80,7 @@ function renderOverridesList() {
 
 async function removeOverride(kind, value, term) {
   try {
-    const res = await fetch(API, {
+    const res = await fetch(RULES_API, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ kind, value, term }),
@@ -93,7 +95,7 @@ async function removeOverride(kind, value, term) {
 }
 
 async function addOverride(kind, value, term) {
-  const res = await fetch(API, {
+  const res = await fetch(RULES_API, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ kind, value, term }),
@@ -106,10 +108,9 @@ async function addOverride(kind, value, term) {
   renderOverridesList();
 }
 
-// ---- Manage users (local mock — see js/usersStore.js) ----
+// ---- Manage users (real accounts — functions/admin/api/users.js) ----
 
-function renderUsersList() {
-  const users = listUsers();
+function renderUsersList(users) {
   const adminCount = users.filter((u) => u.role === 'admin').length;
   usersBadgeEl.textContent = `${users.length} account${users.length === 1 ? '' : 's'} · ${adminCount} admin${adminCount === 1 ? '' : 's'}`;
 
@@ -121,13 +122,16 @@ function renderUsersList() {
   const sorted = [...users].sort((a, b) => a.username.localeCompare(b.username));
   usersListEl.innerHTML = sorted
     .map((user) => {
+      const isSelf = user.username.toLowerCase() === currentUsername.toLowerCase();
       const isLastAdmin = user.role === 'admin' && adminCount <= 1;
+      const removeDisabled = isSelf || isLastAdmin;
+      const removeTitle = isSelf ? "You can't remove your own account" : isLastAdmin ? "Can't remove the last remaining admin" : 'Remove';
       return `<div class="list-row">
         <div class="list-row-main">
           <div class="avatar" style="background: ${avatarColor(user.username)}">${escapeHtml(initials(user.username))}</div>
           <div>
-            <div class="list-row-name">${escapeHtml(user.username)}</div>
-            <div class="list-row-meta">Added ${escapeHtml(new Date(user.addedAt).toLocaleDateString('en-GB'))}</div>
+            <div class="list-row-name">${escapeHtml(user.username)}${isSelf ? ' <span class="muted">(you)</span>' : ''}</div>
+            <div class="list-row-meta">${user.addedBy ? `Added by ${escapeHtml(user.addedBy)} on ` : 'Added '}${escapeHtml(new Date(user.addedAt).toLocaleDateString('en-GB'))}</div>
           </div>
         </div>
         <div class="list-row-end">
@@ -135,7 +139,7 @@ function renderUsersList() {
           <button type="button" class="btn-icon reset-password-btn" data-username="${escapeHtml(user.username)}" aria-label="Reset password for ${escapeHtml(user.username)}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><line x1="10.5" y1="12.5" x2="19" y2="4"/><line x1="15" y1="9" x2="18" y2="12"/></svg>
           </button>
-          <button type="button" class="btn-icon btn-icon-danger remove-user-btn" data-username="${escapeHtml(user.username)}" ${isLastAdmin ? 'disabled' : ''} title="${isLastAdmin ? "Can't remove the last remaining admin" : 'Remove'}" aria-label="Remove ${escapeHtml(user.username)}">
+          <button type="button" class="btn-icon btn-icon-danger remove-user-btn" data-username="${escapeHtml(user.username)}" ${removeDisabled ? 'disabled' : ''} title="${escapeHtml(removeTitle)}" aria-label="Remove ${escapeHtml(user.username)}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
           </button>
         </div>
@@ -148,12 +152,7 @@ function renderUsersList() {
       const username = btn.dataset.username;
       const password = window.prompt(`New password for ${username} (at least 8 characters):`);
       if (password === null) return;
-      try {
-        resetPassword(username, password);
-        announce(`Password updated for ${username}.`);
-      } catch (err) {
-        announce(`Could not update password: ${err.message}`);
-      }
+      resetPassword(username, password);
     });
   });
 
@@ -161,28 +160,66 @@ function renderUsersList() {
     btn.addEventListener('click', () => {
       const username = btn.dataset.username;
       if (!window.confirm(`Remove ${username}? This can't be undone.`)) return;
-      try {
-        removeUser(username);
-        renderUsersList();
-        announce(`Removed ${username}.`);
-      } catch (err) {
-        announce(`Could not remove ${username}: ${err.message}`);
-      }
+      removeUser(username);
     });
   });
 }
 
-addUserForm.addEventListener('submit', (event) => {
+async function fetchUsers() {
+  const res = await fetch(USERS_API);
+  if (!res.ok) throw new Error(`Request failed (${res.status}).`);
+  const data = await res.json();
+  renderUsersList(data.users);
+}
+
+async function resetPassword(username, newPassword) {
+  try {
+    const res = await fetch(USERS_API, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, newPassword }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `Request failed (${res.status}).`);
+    announce(`Password updated for ${username}.`);
+  } catch (err) {
+    announce(`Could not update password for ${username}: ${err.message}`);
+  }
+}
+
+async function removeUser(username) {
+  try {
+    const res = await fetch(USERS_API, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `Request failed (${res.status}).`);
+    renderUsersList(body.users);
+    announce(`Removed ${username}.`);
+  } catch (err) {
+    announce(`Could not remove ${username}: ${err.message}`);
+  }
+}
+
+addUserForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   addUserErrorEl.hidden = true;
-  const username = document.getElementById('new-username').value;
+  const username = document.getElementById('new-username').value.trim();
   const password = document.getElementById('new-password').value;
   const role = document.getElementById('new-role').value;
   try {
-    addUser({ username, password, role });
+    const res = await fetch(USERS_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password, role }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `Request failed (${res.status}).`);
     addUserForm.reset();
-    renderUsersList();
-    announce(`Added ${username.trim()} as ${role === 'admin' ? 'Admin' : 'User'}.`);
+    renderUsersList(body.users);
+    announce(`Added ${username} as ${role === 'admin' ? 'Admin' : 'User'}.`);
   } catch (err) {
     addUserErrorEl.hidden = false;
     addUserErrorEl.textContent = err.message;
@@ -236,24 +273,38 @@ document.getElementById('add-content-form').addEventListener('submit', async (ev
   }
 });
 
-async function init() {
-  renderUsersList();
+function showUnauthorized(message) {
+  unauthorizedEl.hidden = false;
+  if (message) unauthorizedEl.querySelector('p').textContent = message;
+}
 
+async function init() {
   try {
-    const res = await fetch(API);
-    if (res.status === 401) {
-      unauthorizedEl.hidden = false;
+    const whoamiRes = await fetch('/api/whoami');
+    if (!whoamiRes.ok) {
+      showUnauthorized();
       return;
     }
-    if (!res.ok) throw new Error(`Request failed (${res.status}).`);
-    const data = await res.json();
-    store = { campaigns: data.campaigns, content: data.content, sources: data.sources };
-    viewerEmailEl.textContent = data.viewerEmail;
+    const session = await whoamiRes.json();
+    if (session.role !== 'admin') {
+      showUnauthorized('Admin access required — this account is not an admin.');
+      return;
+    }
+
+    currentUsername = session.username;
+    viewerAvatarEl.textContent = initials(session.username);
+    viewerAvatarEl.style.background = avatarColor(session.username);
+    viewerUsernameEl.textContent = session.username;
     contentEl.hidden = false;
+
+    const rulesRes = await fetch(RULES_API);
+    if (!rulesRes.ok) throw new Error(`Request failed (${rulesRes.status}).`);
+    store = await rulesRes.json();
     renderOverridesList();
+
+    await fetchUsers();
   } catch (err) {
-    unauthorizedEl.hidden = false;
-    unauthorizedEl.querySelector('p').textContent = `Could not load admin data: ${err.message}`;
+    showUnauthorized(`Could not load admin data: ${err.message}`);
   }
 }
 
