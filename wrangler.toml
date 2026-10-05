@@ -4,16 +4,8 @@ compatibility_date = "2026-07-27"
 
 # Bound and live. Still unused at runtime until js/dataAccess.js's BACKEND
 # constant is set to 'cloudflare' — the app defaults to a localStorage-only
-# mock backend that needs no Cloudflare setup at all.
+# mock backend that needs no Cloudflare setup at all. Also backs the
+# admin-added rule overrides (functions/admin/api/rules.js).
 [[kv_namespaces]]
 binding = "UTM_RECORDS"
 id = "3ba579c4196c4d35942de027d992f8a0"
-
-# Lets functions/admin/api/access.js manage who's allowed through the Access
-# policy on /admin* — not secret, just IDs. See README "Admin access
-# controls" for where to find them and for the CF_API_TOKEN secret this
-# also needs (set separately via `wrangler pages secret put CF_API_TOKEN`,
-# never committed here).
-[vars]
-CF_ACCOUNT_ID = "REPLACE_WITH_YOUR_CLOUDFLARE_ACCOUNT_ID"
-ACCESS_APP_ID = "REPLACE_WITH_YOUR_ADMIN_ACCESS_APPLICATION_ID"

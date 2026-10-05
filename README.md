@@ -68,13 +68,13 @@ js/generator.js          UTM construction + per-row evaluation (required fields,
 js/dataAccess.js         list()/append() interface — swap point for the real backend
 js/app.js                Builder page wiring: row table, cascading selects, duplicate row, bulk-add, confirmation dialog
 js/shared-app.js         Shared view wiring: load, filter, CSV export
-js/admin-app.js          Admin page wiring: add/remove overrides, add/remove admins, calls /admin/api/rules and /admin/api/access
+js/admin-app.js          Admin page wiring: add/remove overrides (calls /admin/api/rules), plus the local-only "Manage users" mock (js/usersStore.js) — see "Admin" below
+js/usersStore.js         Local-only, illustrative store behind "Manage users" — localStorage, not shared, not real auth; see "Admin" below
 js/utils.js              escapeHtml, CSV encoding, clipboard, file download, id generation
 functions/api/utms.js            Cloudflare Pages Function: GET/POST against KV (only used when BACKEND = 'cloudflare')
 functions/api/rules-overrides.js Public GET of admin-added values (no auth — every visitor's dropdowns need this)
 functions/admin/api/rules.js     GET/POST/DELETE of admin-added values, gated behind Cloudflare Access on /admin* — see "Admin" below
-functions/admin/api/access.js    GET/POST/DELETE of who's allowed through Access on /admin* — edits the real Cloudflare Access policy, see "Admin access controls" below
-wrangler.toml            KV namespace binding (reused by the shared-view records, rule overrides and admin directory, under different keys), plus CF_ACCOUNT_ID/ACCESS_APP_ID vars for admin access controls
+wrangler.toml            KV namespace binding, reused by the shared-view records and rule overrides under different keys
 robots.txt               Disallows every crawler, named AI ones included — this is internal marketing data, not public content
 llms.txt                 Same "don't crawl/index/train on this" request, in the llmstxt.org convention some AI agents check
 tests/e2e.mjs            Playwright script exercising every Phase 4 test case below (dev-only, not deployed)
@@ -89,7 +89,21 @@ next person hits "Other" again for the same recurring affiliate/campaign.
 `/admin` fixes that: an approved admin picks the value once, and it's
 permanently offered to everyone from then on.
 
-**Access control: Cloudflare Access, not a password.** `/admin` (the page)
+**Current status on the live deploy: not actually gated yet.** `/admin*`
+has never had a Cloudflare Access application configured against it (the
+one-time setup below was written but never carried out), so
+`Cf-Access-Authenticated-User-Email` never arrives and `/admin/api/rules`
+401s for every caller, including a real admin — the "Add a Campaign/Source/
+Content" forms and "Admin-added values" list currently show the
+unauthorized state for everyone on the live site. `/admin.html` itself also
+has no page-level gate of any kind (no middleware; it only ever relied on
+the Access application below) and is reachable by anyone who finds the URL.
+Do either the one-time setup below to make the existing Cloudflare Access
+model real, or merge the separate `feature/user-accounts-auth` branch
+(real per-person username/password accounts, no Cloudflare dependency) —
+whichever this project ends up hosting on.
+
+**Access control: Cloudflare Access, not a password** (once set up). `/admin` (the page)
 and `/admin/api/rules` (the write endpoint it calls) both sit behind a
 Cloudflare Access application. Approved people sign in with their
 `@port.ac.uk` email and a one-time PIN — no new credentials to manage, and
@@ -132,46 +146,25 @@ email) and `addedAt`. `/api/rules-overrides` (public) strips `addedBy` out
 before returning data, so visitor dropdowns never expose staff email
 addresses.
 
-### Admin access controls
+### Manage users (local-only mock, not real accounts)
 
-The Admin page's "Admin access" section manages who can reach `/admin*` for
-real — it edits the actual Cloudflare Access "Allow" policy's email list via
-the Cloudflare API (`functions/admin/api/access.js`), the same list the Zero
-Trust dashboard shows. A KV directory alongside it (`admin-directory`, same
-`UTM_RECORDS` namespace, its own key) only adds descriptive metadata — role
-label, who invited whom, when — since Access itself doesn't track that; an
-email added straight from the dashboard instead of this page still shows up
-correctly, just without that metadata, because Cloudflare's policy is always
-re-read as the source of truth, never the KV directory alone.
+The Admin page used to have an "Admin access" section that edited the real
+Cloudflare Access "Allow" policy directly (`functions/admin/api/access.js`,
+since removed). It's been replaced by "Manage users": a local, illustrative
+mock (`js/usersStore.js`). Accounts live in that one browser's
+`localStorage` only, nothing is shared
+between visitors or persisted server-side, and it doesn't gate access to
+anything — it exists to show the shape of a real "3 admins, everyone else a
+user, admin creates every account by hand" model before building it for
+real. It does enforce one real rule locally: you can't remove the last
+remaining admin.
 
-Safeguards: you can't remove your own admin access, and you can't remove the
-last remaining admin — both enforced server-side, not just hidden in the UI.
-There's no separate permission tier — "Owner" vs "Admin" in the UI is a label
-only, not an actual capability difference; every listed admin can invite or
-remove any other admin (except themselves).
-
-**One-time setup**, in addition to the Access application from the section
-above:
-1. Cloudflare dashboard → **My Profile → API Tokens → Create Token → Custom
-   token**. Permission: **Account → Access: Apps and Policies → Edit**,
-   scoped to this account. This token can edit *every* Access policy on the
-   account, not just this one app — treat it accordingly.
-2. Find your **Account ID** (Cloudflare dashboard → any domain or Workers &
-   Pages overview → right-hand sidebar) and paste it into `wrangler.toml`'s
-   `CF_ACCOUNT_ID`.
-3. Find the **Access Application ID** for the `/admin*` app: Zero Trust →
-   Access → Applications → open it → the UUID in the URL
-   (`.../access/apps/edit/<this-id>`). Paste it into `wrangler.toml`'s
-   `ACCESS_APP_ID`.
-4. Set the token itself as a **secret**, never committed:
-   `npx wrangler pages secret put CF_API_TOKEN` (pastes interactively,
-   never touches the repo or shell history).
-5. Push — `wrangler.toml`'s two plain vars deploy with the next build; the
-   secret applies immediately.
-
-Until all three are set, the section shows "Admin access management is not
-configured yet" instead of erroring — every other admin feature (Campaign/
-Source/Content overrides) works independently of this.
+The actual per-person, password-checked accounts system (signed session
+cookies, PBKDF2-hashed passwords, a real `admin`/`user` role check in
+Cloudflare Pages Functions) is already built on the separate
+`feature/user-accounts-auth` branch, deliberately kept unmerged until this
+project settles on Cloudflare Pages vs. internal-firewall-only hosting —
+see that branch for the real implementation and its own README section.
 
 ### Not covered
 
@@ -183,14 +176,6 @@ Source/Content overrides) works independently of this.
   responses instead (page renders the unauthorized state correctly with no
   backend; add/remove/merge-into-builder-dropdowns all work against a
   simulated authenticated session).
-- `functions/admin/api/access.js` has never run against a real Cloudflare
-  Access application — it's only verified against mocked `/admin/api/access`
-  responses (list rendering, self/last-admin removal disabled client- and
-  server-side, invite, remove). The Cloudflare Access Policy API shape here
-  (`include: [{ email: { email } }]`, full-object `PUT` to update) is
-  documented but unexercised against a live account — worth a careful first
-  test against a real Access application before relying on it, ideally with
-  a spare admin email you can re-add via the dashboard if something's off.
 - No CSRF hardening beyond Cloudflare Access's own session cookie — an
   accepted risk for a small internal admin tool, not a public-facing
   write surface.
