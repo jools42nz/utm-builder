@@ -62,6 +62,7 @@ index.html              Builder page: batch details + a repeatable row table (1 
 shared.html              Shared view: searchable/filterable list of confirmed UTMs
 admin.html               Admin page: manage users, add/remove permanent Campaign/Source/Content values — see "Authentication" below
 login.html               Sign-in page — see "Authentication" below
+account.html             "My account" page: any signed-in user can change their own password — see "Authentication" below
 css/styles.css           UoP brand tokens (colors, type, focus states) matching the Page Standards Checker
 js/rules.js              MEDIUM_TERM_MAP / TERM_SOURCE_MAP / CAMPAIGN_OPTIONS / CONTENT_OPTIONS, sourced from the spreadsheet's own lookup tabs — swap point for rule data
 js/rulesOverrides.js     Merges admin-added values (from /api/rules-overrides) on top of js/rules.js's static lists — what the builder actually imports for Campaign/Source/Content
@@ -72,6 +73,7 @@ js/shared-app.js         Shared view wiring: load, filter, CSV export
 js/admin-app.js          Admin page wiring: manage users (calls /admin/api/users) and add/remove overrides (calls /admin/api/rules) — see "Authentication" below
 js/login.js              Posts to /api/login, redirects to ?redirect= target on success
 js/logout.js             Posts to /api/logout, then redirects to /login
+js/account.js            "My account" wiring: greets the signed-in user, posts to /api/account to change their own password
 js/utils.js              escapeHtml, CSV encoding, clipboard, file download, id generation
 functions/_middleware.js         Gates every request behind a session; /admin* additionally requires the admin role — see "Authentication" below
 functions/_lib/session.js        Signed session-cookie helpers (sign/verify, HMAC'd with SESSION_SECRET)
@@ -79,6 +81,7 @@ functions/_lib/users.js          Password hashing (PBKDF2) and the KV-backed use
 functions/api/login.js           Checks username/password, sets the session cookie
 functions/api/logout.js          Clears the session cookie
 functions/api/whoami.js          Returns the current session's { username, role }
+functions/api/account.js         PUT: any signed-in account changes their own password (requires the current one) — see "Authentication" below
 functions/api/utms.js            Cloudflare Pages Function: GET/POST against KV (only used when BACKEND = 'cloudflare')
 functions/api/rules-overrides.js Public GET of admin-added values (no auth — every visitor's dropdowns need this)
 functions/admin/api/rules.js     GET/POST/DELETE of admin-added values, admin-only — see "Authentication" below
@@ -146,6 +149,18 @@ not just hidden in the UI: you can't remove your own account, and you
 can't remove the last remaining admin. Removing someone takes effect on
 their next request — their existing session cookie stops verifying,
 same as any tampered cookie would.
+
+### My account (on `/account`, any signed-in user)
+
+A user doesn't need an admin to change their own password — `/account`'s
+"Change password" form posts to `functions/api/account.js`, which requires
+the account's *current* password before setting a new one. It only ever
+touches the caller's own account: the username always comes from the
+verified session, never from the request body, so there's no way to use
+this endpoint to target anyone else's account. Not admin-gated — any role
+can use it. An admin's own "Manage users" reset-password button is the
+fallback for someone who's actually locked out and can't provide their
+current password.
 
 ### One-time setup: the first 3 admins
 
