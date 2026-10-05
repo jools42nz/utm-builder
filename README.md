@@ -150,6 +150,11 @@ can't remove the last remaining admin. Removing someone takes effect on
 their next request — their existing session cookie stops verifying,
 same as any tampered cookie would.
 
+New usernames must be a `@port.ac.uk` address (`functions/admin/api/users.js`
+checks the format; no email is actually sent — it's a format check only, not
+real verification). This only applies going forward: accounts created before
+this requirement (`julian.wootton`, `ben.hunt`) keep working as-is.
+
 ### My account (on `/account`, any signed-in user)
 
 A user doesn't need an admin to change their own password — `/account`'s
@@ -169,7 +174,7 @@ anyone — so the very first accounts can't come from the panel itself.
 `scripts/seed-admins.mjs` handles that, once, from the command line:
 
 ```bash
-node scripts/seed-admins.mjs julian.wootton:choose-a-real-password ben.hunt:another-real-password priya.shah:a-third-password
+node scripts/seed-admins.mjs julian.wootton@port.ac.uk:choose-a-real-password ben.hunt@port.ac.uk:another-real-password
 npx wrangler kv key put --namespace-id=3ba579c4196c4d35942de027d992f8a0 "users" --path=users-seed.json
 rm users-seed.json
 ```

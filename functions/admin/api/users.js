@@ -6,7 +6,12 @@
 import { verifySession } from '../../_lib/session.js';
 import { readUsers, writeUsers, findUser, hashPassword } from '../../_lib/users.js';
 
-const USERNAME_PATTERN = /^[a-z0-9._-]{3,50}$/i;
+// Usernames are real @port.ac.uk addresses — no separate identity scheme to
+// remember, and it reads clearly in "Added by" / "(you)" labels. This is a
+// format check only, not real verification: nothing confirms the mailbox
+// exists or that the person creating the account owns it, by design — see
+// README "Authentication".
+const USERNAME_PATTERN = /^[a-z0-9._-]+@port\.ac\.uk$/i;
 const MIN_PASSWORD_LENGTH = 8;
 
 async function requireAdmin(request, env) {
@@ -48,7 +53,7 @@ export async function onRequestPost({ request, env }) {
   const role = body.role === 'admin' ? 'admin' : 'user';
 
   if (!USERNAME_PATTERN.test(username)) {
-    return json({ error: 'Username must be 3-50 characters: letters, numbers, dots, hyphens or underscores.' }, 400);
+    return json({ error: 'Username must be a @port.ac.uk address.' }, 400);
   }
   if (password.length < MIN_PASSWORD_LENGTH) {
     return json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` }, 400);
