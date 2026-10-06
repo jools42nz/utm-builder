@@ -175,7 +175,7 @@ anyone — so the very first accounts can't come from the panel itself.
 
 ```bash
 node scripts/seed-admins.mjs julian.wootton@port.ac.uk:choose-a-real-password ben.hunt@port.ac.uk:another-real-password
-npx wrangler kv key put --namespace-id=3ba579c4196c4d35942de027d992f8a0 "users" --path=users-seed.json
+npx wrangler kv key put --namespace-id=8bd051d983da479d87df405f8e088566 "users" --path=users-seed.json
 rm users-seed.json
 ```
 

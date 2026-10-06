@@ -9,7 +9,7 @@ compatibility_date = "2026-07-27"
 # accounts store (functions/_lib/users.js), under their own KV keys.
 [[kv_namespaces]]
 binding = "UTM_RECORDS"
-id = "3ba579c4196c4d35942de027d992f8a0"
+id = "8bd051d983da479d87df405f8e088566"
 
 # Account-based login (functions/_middleware.js, functions/api/login.js,
 # functions/_lib/session.js) needs one secret — sensitive, so it doesn't

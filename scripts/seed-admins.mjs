@@ -56,7 +56,7 @@ writeFileSync(outFile, JSON.stringify(users));
 
 console.log(`Wrote ${users.length} admin account(s) to ./${outFile}.\n`);
 console.log('Now load it into KV (replace <namespace-id> if wrangler.toml\'s UTM_RECORDS id ever changes):');
-console.log(`  npx wrangler kv key put --namespace-id=3ba579c4196c4d35942de027d992f8a0 "users" --path=${outFile}\n`);
+console.log(`  npx wrangler kv key put --namespace-id=8bd051d983da479d87df405f8e088566 "users" --path=${outFile}\n`);
 console.log('This OVERWRITES the entire "users" key — only run it once, before any users exist. Adding');
 console.log('people after that goes through the Admin page\'s "Manage users" section instead.\n');
 console.log(`Delete ./${outFile} once the command above has run — it holds password hashes, not plaintext,`);
