@@ -73,6 +73,17 @@
       </div>
     </div>
 
+    <div id="legacy-import-banner" class="card" role="alert" hidden style="display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+      <p style="margin: 0;">
+        Found <strong id="legacy-import-count"></strong> UTM(s) saved only in this browser from before the
+        shared view worked properly. Upload them so everyone can see them?
+      </p>
+      <div style="display: flex; gap: 10px; flex: 0 0 auto;">
+        <button type="button" class="btn btn-primary" id="legacy-import-btn">Upload to shared view</button>
+        <button type="button" class="btn btn-secondary" id="legacy-import-dismiss-btn">Dismiss</button>
+      </div>
+    </div>
+
     <form id="filter-form" class="card filter-form" novalidate>
       <div class="card-label">Filters</div>
       <div class="filter-row">

@@ -36,6 +36,49 @@ function announce(message) {
   statusRegion.textContent = message;
 }
 
+// One-time recovery path for UTMs saved before the shared view was wired up
+// to the real backend (dataAccess.js's BACKEND was 'mock' — see that file):
+// those records only ever existed in that person's own browser's
+// localStorage. Offers to upload whatever's still sitting there into the
+// real shared store.
+const LEGACY_STORAGE_KEY = 'utm-builder:records';
+const legacyBanner = document.getElementById('legacy-import-banner');
+const legacyCountEl = document.getElementById('legacy-import-count');
+const legacyImportBtn = document.getElementById('legacy-import-btn');
+const legacyDismissBtn = document.getElementById('legacy-import-dismiss-btn');
+
+function checkForLegacyLocalData() {
+  let legacyRecords;
+  try {
+    const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
+    legacyRecords = raw ? JSON.parse(raw) : [];
+  } catch {
+    legacyRecords = [];
+  }
+  if (!Array.isArray(legacyRecords) || legacyRecords.length === 0) return;
+
+  legacyCountEl.textContent = legacyRecords.length;
+  legacyBanner.hidden = false;
+
+  legacyImportBtn.addEventListener('click', async () => {
+    legacyImportBtn.disabled = true;
+    try {
+      allRecords = await dataAccess.append(legacyRecords);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      legacyBanner.hidden = true;
+      render();
+      announce(`Uploaded ${legacyRecords.length} UTM(s) from this browser to the shared view.`);
+    } catch (err) {
+      legacyImportBtn.disabled = false;
+      announce(`Could not upload: ${err.message}`);
+    }
+  });
+
+  legacyDismissBtn.addEventListener('click', () => {
+    legacyBanner.hidden = true;
+  });
+}
+
 gaMediumSelect.innerHTML += MEDIUM_OPTIONS.map((m) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
 campaignTermSelect.innerHTML += TERM_OPTIONS.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
 
@@ -196,3 +239,4 @@ document.getElementById('export-shared-csv-btn').addEventListener('click', () =>
 });
 
 load();
+checkForLegacyLocalData();

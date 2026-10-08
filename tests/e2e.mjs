@@ -466,6 +466,37 @@ log(
 const rowNumbersAfterMidDuplicate = await page.locator('#rows-list .row-number').allTextContents();
 log('Row numbers renumber sequentially after a mid-list duplicate', JSON.stringify(rowNumbersAfterMidDuplicate) === JSON.stringify(Array.from({ length: 11 }, (_, i) => String(i + 1))), rowNumbersAfterMidDuplicate.join(','));
 
+// ---- Test 22: legacy localStorage data (from before BACKEND was 'cloudflare') offers a one-time upload into the shared view ----
+await resetPage();
+await page.goto(`${BASE}/shared.html`);
+const legacyBannerHiddenInitially = await page.getAttribute('#legacy-import-banner', 'hidden');
+log('No legacy-import banner when this browser has no old local data', legacyBannerHiddenInitially !== null, `hidden=${legacyBannerHiddenInitially}`);
+
+const legacyRecord = {
+  setUpBy: 'Legacy Larry',
+  date: '2026-01-15',
+  pageUrl: 'https://www.port.ac.uk/legacy',
+  campaign: 'old-campaign',
+  gaMedium: 'ppc',
+  campaignTerm: 'paid-search',
+  source: 'google',
+  campaignContent: 'legacy-content',
+  utm: 'https://www.port.ac.uk/legacy?utm_campaign=old-campaign&utm_medium=ppc&utm_source=google&utm_term=paid-search&utm_content=legacy-content',
+  createdAt: '2026-01-15T00:00:00.000Z',
+};
+await page.evaluate((record) => localStorage.setItem('utm-builder:records', JSON.stringify([record])), legacyRecord);
+await page.reload();
+const legacyBannerHidden = await page.getAttribute('#legacy-import-banner', 'hidden');
+const legacyCount = await page.textContent('#legacy-import-count');
+log('Legacy-import banner appears with the right count when old local data exists', legacyBannerHidden === null && legacyCount === '1', `hidden=${legacyBannerHidden}, count=${legacyCount}`);
+
+await page.click('#legacy-import-btn');
+await page.waitForFunction(() => document.getElementById('legacy-import-banner').hidden === true);
+const legacyRowsAfterImport = await page.locator('.results-table tbody tr').count();
+log('Legacy record appears in the shared view after upload', legacyRowsAfterImport === 1, `rows=${legacyRowsAfterImport}`);
+const legacyStorageAfterImport = await page.evaluate(() => localStorage.getItem('utm-builder:records'));
+log('Old localStorage key is cleared after a successful upload', legacyStorageAfterImport === null, `stored=${legacyStorageAfterImport}`);
+
 await browser.close();
 const failed = results.filter((r) => !r.pass);
 console.log(`\n${results.length - failed.length}/${results.length} checks passed.`);
