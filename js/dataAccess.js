@@ -5,8 +5,10 @@
  */
 
 // Swap point: 'mock' (localStorage, works with no backend) or 'cloudflare'
-// (Cloudflare Pages Functions + KV — see functions/api/utms.js).
-const BACKEND = 'mock';
+// (Cloudflare Pages Functions + KV — see functions/api/utms.js). Must be
+// 'cloudflare' for the shared view to actually be shared across users —
+// localStorage is per-browser, so 'mock' only ever shows you your own data.
+const BACKEND = 'cloudflare';
 
 const STORAGE_KEY = 'utm-builder:records';
 

@@ -10,6 +10,20 @@ function log(name, pass, detail = '') {
 const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH });
 const page = await browser.newPage();
 
+// The static test server has no Cloudflare Functions runtime, so /api/utms
+// (which dataAccess.js's 'cloudflare' backend now always uses — see that
+// file) is mocked here to mirror functions/api/utms.js's real behaviour:
+// GET returns the stored array, POST appends to it and returns the result.
+let mockSharedRecords = [];
+await page.route('**/api/utms', async (route) => {
+  const request = route.request();
+  if (request.method() === 'POST') {
+    const incoming = JSON.parse(request.postData() || '[]');
+    mockSharedRecords = mockSharedRecords.concat(incoming);
+  }
+  await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockSharedRecords) });
+});
+
 async function fillBatch({ setUpBy = 'E2E Tester', date = '2026-07-30' } = {}) {
   await page.fill('#setUpBy', setUpBy);
   await page.fill('#date', date);
@@ -32,6 +46,7 @@ function row(n = 0) {
 }
 
 async function resetPage() {
+  mockSharedRecords = [];
   await page.goto(`${BASE}/index.html`);
   await page.evaluate(() => localStorage.clear());
   await page.reload();
