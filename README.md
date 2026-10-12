@@ -66,7 +66,7 @@ js/rulesOverrides.js     Merges admin-added values (from /api/rules-overrides) o
 js/generator.js          UTM construction + per-row evaluation (required fields, defensive re-validation, duplicates)
 js/dataAccess.js         list()/append() interface — swap point for the real backend
 js/app.js                Builder page wiring: row table, cascading selects, duplicate row, bulk-add, confirmation dialog
-js/shared-app.js         Shared view wiring: load, filter, CSV export, one-time upload of pre-fix localStorage data
+js/shared-app.js         Shared view wiring: load, filter, CSV export, one-time upload of pre-fix localStorage data, admin-only delete
 js/admin-app.js          Admin page wiring: manage users (calls /admin/api/users), add/remove overrides (calls /admin/api/rules), import a shared-view CSV — see "Authentication" below
 js/login.js              Posts to /api/login, redirects to ?redirect= target on success
 js/logout.js             Posts to /api/logout, then redirects to /login
@@ -83,6 +83,7 @@ functions/api/utms.js            Cloudflare Pages Function: GET/POST against KV 
 functions/api/rules-overrides.js Public GET of admin-added values (no auth — every visitor's dropdowns need this)
 functions/admin/api/rules.js     GET/POST/DELETE of admin-added values, admin-only — see "Authentication" below
 functions/admin/api/users.js     GET/POST/PUT/DELETE of user accounts, admin-only — see "Authentication" below
+functions/admin/api/utms.js      DELETE a shared-view UTM record by id, admin-only — see "Authentication" below
 scripts/seed-admins.mjs          One-time CLI to create the first admin account(s) — see "Authentication" below
 wrangler.toml            KV namespace binding, reused by shared-view records, rule overrides and user accounts under different keys
 robots.txt               Disallows every crawler, named AI ones included — this is internal marketing data, not public content
@@ -135,9 +136,20 @@ also manage every account — see "Manage users" below.
   be forged or edited client-side, valid for 7 days.
 - `/admin*` additionally requires `role: "admin"` — a `user`-role session
   gets a plain "admin access required" page/response, not a redirect loop.
-- `functions/admin/api/rules.js` and `functions/admin/api/users.js`
-  independently re-check the admin role themselves (not just trusting that
-  the middleware ran) — defence in depth.
+- `functions/admin/api/rules.js`, `functions/admin/api/users.js` and
+  `functions/admin/api/utms.js` independently re-check the admin role
+  themselves (not just trusting that the middleware ran) — defence in depth.
+
+### Removing a UTM from the shared view (admin only)
+
+Each row in the Shared view gets a bin icon for admins — removing a UTM
+submitted in error, or clearing out a batch of old entries (e.g. filter down
+to everything from a given year, then delete each of the filtered rows).
+Deletes by the record's `id` (every record has had one since it was first
+created in `js/app.js`; anything imported from a CSV via the admin page's
+"Import shared view CSV" gets a fresh one on the way in) via
+`functions/admin/api/utms.js`. Asks for confirmation before sending the
+request — it can't be undone.
 
 ### Manage users (on `/admin`)
 

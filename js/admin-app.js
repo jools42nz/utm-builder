@@ -1,5 +1,5 @@
 import { TERM_OPTIONS } from './rules.js';
-import { escapeHtml, parseCsv } from './utils.js';
+import { escapeHtml, parseCsv, generateId } from './utils.js';
 import { dataAccess } from './dataAccess.js';
 
 const RULES_API = '/admin/api/rules';
@@ -296,7 +296,7 @@ function parseSharedViewCsv(text) {
   }
 
   return dataRows.map((row) => {
-    const record = {};
+    const record = { id: generateId() };
     IMPORT_SHARED_FIELDS.forEach((field, i) => {
       record[field] = row[i] ?? '';
     });

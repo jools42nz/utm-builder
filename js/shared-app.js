@@ -31,9 +31,41 @@ const FILTER_LABELS = {
 };
 
 let allRecords = [];
+let isAdmin = false;
 
 function announce(message) {
   statusRegion.textContent = message;
+}
+
+const ICON_DELETE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
+
+async function checkIsAdmin() {
+  try {
+    const res = await fetch('/api/whoami');
+    if (!res.ok) return false;
+    const session = await res.json();
+    return session.role === 'admin';
+  } catch {
+    return false;
+  }
+}
+
+async function deleteRecord(record) {
+  if (!confirm(`Remove this UTM from the shared view?\n\n${record.pageUrl}\n\nThis can't be undone.`)) return;
+  try {
+    const res = await fetch('/admin/api/utms', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: record.id }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `Request failed (${res.status}).`);
+    allRecords = allRecords.filter((r) => r.id !== record.id);
+    render();
+    announce(`Removed the UTM for ${record.pageUrl}.`);
+  } catch (err) {
+    announce(`Could not remove UTM: ${err.message}`);
+  }
 }
 
 // One-time recovery path for UTMs saved before the shared view was wired up
@@ -176,6 +208,7 @@ function render() {
         <td class="cell-utm" data-label="UTM"><code class="utm-output">${escapeHtml(r.utm)}</code>
           <button type="button" class="btn-icon copy-single" data-utm="${escapeHtml(r.utm)}" aria-label="Copy UTM">${ICON_COPY}</button>
         </td>
+        ${isAdmin ? `<td data-label="Actions"><button type="button" class="btn-icon btn-icon-danger delete-utm-btn" data-id="${escapeHtml(r.id)}" title="Remove from shared view" aria-label="Remove from shared view">${ICON_DELETE}</button></td>` : ''}
       </tr>`
     )
     .join('');
@@ -193,10 +226,20 @@ function render() {
         <th scope="col">Source</th>
         <th scope="col">Campaign Content</th>
         <th scope="col">UTM</th>
+        ${isAdmin ? '<th scope="col">Actions</th>' : ''}
       </tr>
     </thead>
     <tbody>${rowsHtml}</tbody>
   </table>`;
+
+  if (isAdmin) {
+    tableContainer.querySelectorAll('.delete-utm-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const record = allRecords.find((r) => r.id === btn.dataset.id);
+        if (record) deleteRecord(record);
+      });
+    });
+  }
 
   tableContainer.querySelectorAll('.copy-single').forEach((btn) => {
     btn.addEventListener('click', async () => {
@@ -212,6 +255,7 @@ function render() {
 }
 
 async function load() {
+  isAdmin = await checkIsAdmin();
   try {
     allRecords = await dataAccess.list();
     render();
