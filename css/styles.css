@@ -693,55 +693,62 @@ textarea[aria-invalid='true'] {
   padding: 10px 14px;
 }
 
-#shared-table-container {
-  overflow-x: auto;
+.shared-row-main {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-table {
-  border-collapse: collapse;
-  width: 100%;
+.shared-row-pageUrl {
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.results-table-wide {
-  min-width: 1500px;
+.shared-row-meta {
+  font-size: 12px;
+  color: var(--muted);
 }
 
-.results-table th,
-.results-table td {
-  text-align: left;
-  padding: 12px 14px;
-  vertical-align: top;
-  border-top: 1px solid var(--border);
+.shared-row-utm-preview {
+  flex: 1 1 200px;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.results-table thead tr {
-  background: var(--purple-tint);
+.shared-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 14px;
 }
 
-.results-table thead th {
-  font-size: 11px;
+.shared-field-label {
+  display: block;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--purple-dark);
-  white-space: nowrap;
-  border-top: none;
+  color: var(--muted);
+  margin-bottom: 3px;
 }
 
-.results-table tbody tr:nth-child(even) {
-  background: #fbfafc;
-}
-
-.results-table-wide .cell-url,
-.results-table-wide .cell-utm,
-.results-table-wide .utm-output {
-  white-space: nowrap;
-}
-
-.cell-utm {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.shared-field-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
 }
 
 /* ---------------------------------------------------------------------
@@ -1193,6 +1200,19 @@ table {
     order: 2;
   }
 
+  .shared-row-main {
+    flex-basis: 100%;
+    order: 1;
+  }
+
+  .shared-row-utm-preview {
+    flex-basis: 100%;
+    order: 2;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
   .row-actions {
     margin-left: 0;
   }
@@ -1229,57 +1249,3 @@ table {
   }
 }
 
-/* Below ~700px, dense data tables stop trying to fit in a row and turn
-   into a stacked card per record instead of scrolling sideways. */
-@media (max-width: 700px) {
-  .results-table,
-  .results-table thead {
-    display: none;
-  }
-
-  .results-table,
-  .results-table-wide {
-    min-width: 0;
-  }
-
-  .results-table,
-  .results-table tbody,
-  .results-table tr,
-  .results-table td {
-    display: block;
-    width: 100%;
-  }
-
-  .results-table {
-    border: none;
-  }
-
-  .results-table tr {
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    margin-bottom: 12px;
-    padding: 4px 14px;
-    background: var(--white) !important;
-  }
-
-  .results-table td {
-    border-top: 1px solid var(--border);
-    padding: 8px 0;
-    white-space: normal !important;
-  }
-
-  .results-table td:first-child {
-    border-top: none;
-  }
-
-  .results-table td::before {
-    content: attr(data-label);
-    display: block;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 2px;
-  }
-}

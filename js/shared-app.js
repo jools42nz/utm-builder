@@ -146,6 +146,16 @@ function matchesFilters(record) {
 const ICON_COPY = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1"/></svg>';
 const ICON_COPIED = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 const ICON_REMOVE_CHIP = '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+const ICON_CHEVRON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+
+// Which cards are expanded — kept outside render() since render() rebuilds
+// the whole list from scratch on every filter keystroke; without this,
+// expanding a card would collapse again the next time you typed.
+const expandedIds = new Set();
+
+function truncateUtm(utm) {
+  return utm.length > 60 ? `${utm.slice(0, 57)}…` : utm;
+}
 
 let lastActiveFiltersKey = null;
 
@@ -194,43 +204,47 @@ function render() {
 
   const sorted = [...filtered].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
-  const rowsHtml = sorted
-    .map(
-      (r) => `<tr>
-        <td data-label="Set Up By">${escapeHtml(r.setUpBy)}</td>
-        <td data-label="Date">${escapeHtml(formatDateUK(r.date))}</td>
-        <td class="cell-url" data-label="Page URL">${escapeHtml(r.pageUrl)}</td>
-        <td data-label="Campaign">${escapeHtml(r.campaign)}</td>
-        <td data-label="GA4 Medium">${escapeHtml(r.gaMedium)}</td>
-        <td data-label="Campaign Term">${escapeHtml(r.campaignTerm)}</td>
-        <td data-label="Source">${escapeHtml(r.source)}</td>
-        <td data-label="Campaign Content">${escapeHtml(r.campaignContent)}</td>
-        <td class="cell-utm" data-label="UTM"><code class="utm-output">${escapeHtml(r.utm)}</code>
-          <button type="button" class="btn-icon copy-single" data-utm="${escapeHtml(r.utm)}" aria-label="Copy UTM">${ICON_COPY}</button>
-        </td>
-        ${isAdmin ? `<td data-label="Actions"><button type="button" class="btn-icon btn-icon-danger delete-utm-btn" data-id="${escapeHtml(r.id)}" title="Remove from shared view" aria-label="Remove from shared view">${ICON_DELETE}</button></td>` : ''}
-      </tr>`
-    )
+  const cardsHtml = sorted
+    .map((r) => {
+      const isExpanded = expandedIds.has(r.id);
+      const id = escapeHtml(r.id);
+      return `<div class="row-card" data-id="${id}">
+        <div class="row-header">
+          <button type="button" class="row-toggle" aria-expanded="${isExpanded}" aria-controls="shared-details-${id}" aria-label="${isExpanded ? 'Collapse' : 'Expand'} details for ${escapeHtml(r.pageUrl)}" data-id="${id}">${ICON_CHEVRON}</button>
+          <div class="shared-row-main">
+            <div class="shared-row-pageUrl">${escapeHtml(r.pageUrl)}</div>
+            <div class="shared-row-meta">${escapeHtml(r.setUpBy)} &middot; ${escapeHtml(formatDateUK(r.date))}</div>
+          </div>
+          <code class="shared-row-utm-preview">${escapeHtml(truncateUtm(r.utm))}</code>
+          <div class="row-actions">
+            <button type="button" class="btn-icon copy-single" data-utm="${escapeHtml(r.utm)}" aria-label="Copy UTM">${ICON_COPY}</button>
+            ${isAdmin ? `<button type="button" class="btn-icon btn-icon-danger delete-utm-btn" data-id="${id}" title="Remove from shared view" aria-label="Remove from shared view">${ICON_DELETE}</button>` : ''}
+          </div>
+        </div>
+        <div class="row-details" id="shared-details-${id}" ${isExpanded ? '' : 'hidden'}>
+          <div class="shared-fields-grid">
+            <div><span class="shared-field-label">Campaign</span><span class="shared-field-value">${escapeHtml(r.campaign)}</span></div>
+            <div><span class="shared-field-label">GA4 Medium</span><span class="shared-field-value">${escapeHtml(r.gaMedium)}</span></div>
+            <div><span class="shared-field-label">Campaign Term</span><span class="shared-field-value">${escapeHtml(r.campaignTerm)}</span></div>
+            <div><span class="shared-field-label">Source</span><span class="shared-field-value">${escapeHtml(r.source)}</span></div>
+            <div><span class="shared-field-label">Campaign Content</span><span class="shared-field-value">${escapeHtml(r.campaignContent)}</span></div>
+          </div>
+          <div class="row-utm-output"><code class="utm-output">${escapeHtml(r.utm)}</code></div>
+        </div>
+      </div>`;
+    })
     .join('');
 
-  tableContainer.innerHTML = `<table class="results-table results-table-wide">
-    <caption class="visually-hidden">Shared UTM view, filtered by the criteria above</caption>
-    <thead>
-      <tr>
-        <th scope="col">Set Up By</th>
-        <th scope="col">Date</th>
-        <th scope="col">Page URL</th>
-        <th scope="col">Campaign</th>
-        <th scope="col">GA4 Medium</th>
-        <th scope="col">Campaign Term</th>
-        <th scope="col">Source</th>
-        <th scope="col">Campaign Content</th>
-        <th scope="col">UTM</th>
-        ${isAdmin ? '<th scope="col">Actions</th>' : ''}
-      </tr>
-    </thead>
-    <tbody>${rowsHtml}</tbody>
-  </table>`;
+  tableContainer.innerHTML = `<div class="rows-list">${cardsHtml}</div>`;
+
+  tableContainer.querySelectorAll('.row-toggle').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      if (expandedIds.has(id)) expandedIds.delete(id);
+      else expandedIds.add(id);
+      render();
+    });
+  });
 
   if (isAdmin) {
     tableContainer.querySelectorAll('.delete-utm-btn').forEach((btn) => {

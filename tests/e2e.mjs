@@ -349,21 +349,30 @@ await page.click('#confirm-yes-btn');
 await page.waitForFunction(() => document.getElementById('confirm-dialog').hidden === true);
 
 await page.goto(`${BASE}/shared.html`);
-await page.waitForSelector('.results-table');
+await page.waitForSelector('.row-card');
 const noPaidOrganicFilter = await page.locator('#filter-paidOrganic').count();
 log('Shared view has no Paid/Organic filter', noPaidOrganicFilter === 0, `count=${noPaidOrganicFilter}`);
 
-const sharedHeaders = await page.locator('.results-table thead th').allTextContents();
+const sharedCardCount = await page.locator('.row-card').count();
+log('Confirmed UTM appears in shared view without further action', sharedCardCount === 1, `cards=${sharedCardCount}`);
+
+const collapsedText = await page.locator('.row-header').first().innerText();
+log('Collapsed card shows Page URL, Set Up By and Date without expanding', collapsedText.includes('https://www.port.ac.uk/alice') && collapsedText.includes('Alice'), collapsedText);
+
+const detailsHiddenByDefault = await page.getAttribute('.row-details', 'hidden');
+log('Card details are collapsed by default', detailsHiddenByDefault !== null, `hidden=${detailsHiddenByDefault}`);
+
+await page.click('.row-toggle');
+await page.waitForSelector('.row-details:not([hidden])');
+const detailLabels = await page.locator('.shared-field-label').allTextContents();
 log(
-  'Shared view table mirrors the builder fields exactly, including Campaign Content',
-  JSON.stringify(sharedHeaders) === JSON.stringify(['Set Up By', 'Date', 'Page URL', 'Campaign', 'GA4 Medium', 'Campaign Term', 'Source', 'Campaign Content', 'UTM']),
-  sharedHeaders.join(',')
+  'Expanding the card mirrors the builder fields exactly, including Campaign Content',
+  JSON.stringify(detailLabels) === JSON.stringify(['Campaign', 'GA4 Medium', 'Campaign Term', 'Source', 'Campaign Content']),
+  detailLabels.join(',')
 );
 
-const sharedRows = await page.locator('.results-table tbody tr').count();
-log('Confirmed UTM appears in shared view without further action', sharedRows === 1, `rows=${sharedRows}`);
-const sharedCells = await page.locator('.results-table tbody tr').first().locator('td').allTextContents();
-log('Shared view row includes the Campaign Content value', sharedCells.some((c) => c.includes('course-ec')), sharedCells.join(' | '));
+const detailValues = await page.locator('.shared-field-value').allTextContents();
+log('Shared view card includes the Campaign Content value', detailValues.includes('course-ec'), detailValues.join(' | '));
 
 // ---- Test 17: shared view filters cover all 5 UTM parameters + Page URL, Date, Set Up By ----
 await page.selectOption('#filter-gaMedium', 'ppc');
@@ -473,6 +482,7 @@ const legacyBannerHiddenInitially = await page.getAttribute('#legacy-import-bann
 log('No legacy-import banner when this browser has no old local data', legacyBannerHiddenInitially !== null, `hidden=${legacyBannerHiddenInitially}`);
 
 const legacyRecord = {
+  id: 'legacy-1',
   setUpBy: 'Legacy Larry',
   date: '2026-01-15',
   pageUrl: 'https://www.port.ac.uk/legacy',
@@ -492,7 +502,7 @@ log('Legacy-import banner appears with the right count when old local data exist
 
 await page.click('#legacy-import-btn');
 await page.waitForFunction(() => document.getElementById('legacy-import-banner').hidden === true);
-const legacyRowsAfterImport = await page.locator('.results-table tbody tr').count();
+const legacyRowsAfterImport = await page.locator('.row-card').count();
 log('Legacy record appears in the shared view after upload', legacyRowsAfterImport === 1, `rows=${legacyRowsAfterImport}`);
 const legacyStorageAfterImport = await page.evaluate(() => localStorage.getItem('utm-builder:records'));
 log('Old localStorage key is cleared after a successful upload', legacyStorageAfterImport === null, `stored=${legacyStorageAfterImport}`);

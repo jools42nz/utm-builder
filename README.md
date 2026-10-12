@@ -218,7 +218,7 @@ and `addedAt`.
 
 - The existing Playwright suite (`tests/e2e.mjs`) runs against a plain
   static server with no Functions runtime, so it never exercises the
-  middleware, login, or `/admin` at all — every one of its 55 checks loads
+  middleware, login, or `/admin` at all — every one of its checks loads
   pages directly, which only works locally because there's no gate to hit.
   The auth logic itself — `functions/_lib/users.js`'s password hashing and
   verification, `functions/_lib/session.js`'s HMAC sign/verify, and
