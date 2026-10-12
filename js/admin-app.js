@@ -1,5 +1,6 @@
 import { TERM_OPTIONS } from './rules.js';
-import { escapeHtml } from './utils.js';
+import { escapeHtml, parseCsv } from './utils.js';
+import { dataAccess } from './dataAccess.js';
 
 const RULES_API = '/admin/api/rules';
 const USERS_API = '/admin/api/users';
@@ -270,6 +271,61 @@ document.getElementById('add-content-form').addEventListener('submit', async (ev
     announce(`Added Campaign Content "${value}".`);
   } catch (err) {
     announce(`Could not add Campaign Content: ${err.message}`);
+  }
+});
+
+// ---- Import shared view CSV (one-time recovery for pre-fix localStorage data) ----
+
+const IMPORT_SHARED_HEADERS = ['Set Up By', 'Date', 'Page URL', 'Campaign', 'GA4 Medium', 'Campaign Term', 'Source', 'Campaign Content', 'UTM', 'Created At'];
+const IMPORT_SHARED_FIELDS = ['setUpBy', 'date', 'pageUrl', 'campaign', 'gaMedium', 'campaignTerm', 'source', 'campaignContent', 'utm', 'createdAt'];
+
+const importSharedForm = document.getElementById('import-shared-form');
+const importSharedFileInput = document.getElementById('import-shared-file');
+const importSharedErrorEl = document.getElementById('import-shared-error');
+const importSharedSuccessEl = document.getElementById('import-shared-success');
+const importSharedSuccessTextEl = document.getElementById('import-shared-success-text');
+
+/** Parses a CSV produced by the Shared view's "Export CSV" button back into record objects. Throws with a human-readable message on a header mismatch. */
+function parseSharedViewCsv(text) {
+  const rows = parseCsv(text).filter((row) => row.some((cell) => cell.trim() !== ''));
+  if (rows.length === 0) return [];
+
+  const [header, ...dataRows] = rows;
+  if (header.length !== IMPORT_SHARED_HEADERS.length || IMPORT_SHARED_HEADERS.some((h, i) => header[i] !== h)) {
+    throw new Error(`Unexpected CSV headers — this must be a file from the Shared view's "Export CSV" button. Expected: ${IMPORT_SHARED_HEADERS.join(', ')}`);
+  }
+
+  return dataRows.map((row) => {
+    const record = {};
+    IMPORT_SHARED_FIELDS.forEach((field, i) => {
+      record[field] = row[i] ?? '';
+    });
+    return record;
+  });
+}
+
+importSharedForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  importSharedErrorEl.hidden = true;
+  importSharedSuccessEl.hidden = true;
+
+  const file = importSharedFileInput.files[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const records = parseSharedViewCsv(text);
+    if (records.length === 0) {
+      throw new Error('No data rows found in that file.');
+    }
+    await dataAccess.append(records);
+    importSharedForm.reset();
+    importSharedSuccessTextEl.textContent = `Imported ${records.length} UTM(s) from "${file.name}" into the shared view.`;
+    importSharedSuccessEl.hidden = false;
+    announce(`Imported ${records.length} UTM(s) into the shared view.`);
+  } catch (err) {
+    importSharedErrorEl.hidden = false;
+    importSharedErrorEl.textContent = err.message;
   }
 });
 

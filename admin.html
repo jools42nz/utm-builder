@@ -193,6 +193,30 @@
         </div>
         <div id="overrides-list"></div>
       </section>
+
+      <section class="card" aria-labelledby="import-shared-heading" style="display: flex; flex-direction: column; gap: 14px;">
+        <div>
+          <div class="card-label" id="import-shared-heading">Import shared view CSV</div>
+          <p class="hint" style="max-width: 560px; margin-top: 6px;">
+            One-time recovery for UTMs that were only ever saved in someone's own browser,
+            from before the shared view was fixed to actually be shared. Get a CSV from
+            each person using the "Export CSV" button on the Shared view page, then upload
+            it here — it's added to the real shared view for everyone.
+          </p>
+        </div>
+        <form id="import-shared-form" style="display: flex; flex-direction: column; gap: 14px;">
+          <div class="field">
+            <label for="import-shared-file">CSV file</label>
+            <input type="file" id="import-shared-file" accept=".csv,text/csv" required />
+          </div>
+          <button type="submit" class="btn btn-primary">Import</button>
+        </form>
+        <p id="import-shared-error" role="alert" class="field-errors" hidden></p>
+        <p id="import-shared-success" class="success-banner" hidden>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span id="import-shared-success-text"></span>
+        </p>
+      </section>
     </div>
   </main>
 </div>

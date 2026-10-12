@@ -39,6 +39,57 @@ export function rowsToCsv(headers, rows) {
   return lines.join('\r\n');
 }
 
+/** Inverse of rowsToCsv's quoting (RFC 4180: "" escapes a literal quote inside a quoted field). Returns an array of rows, each an array of string fields. */
+export function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+  let i = 0;
+  while (i < text.length) {
+    const char = text[i];
+    if (inQuotes) {
+      if (char === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
+          i += 2;
+        } else {
+          inQuotes = false;
+          i += 1;
+        }
+      } else {
+        field += char;
+        i += 1;
+      }
+      continue;
+    }
+    if (char === '"') {
+      inQuotes = true;
+      i += 1;
+    } else if (char === ',') {
+      row.push(field);
+      field = '';
+      i += 1;
+    } else if (char === '\r') {
+      i += 1;
+    } else if (char === '\n') {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = '';
+      i += 1;
+    } else {
+      field += char;
+      i += 1;
+    }
+  }
+  if (field !== '' || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows;
+}
+
 export function downloadFile(filename, content, mimeType = 'text/csv;charset=utf-8;') {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);

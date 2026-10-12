@@ -66,12 +66,12 @@ js/rulesOverrides.js     Merges admin-added values (from /api/rules-overrides) o
 js/generator.js          UTM construction + per-row evaluation (required fields, defensive re-validation, duplicates)
 js/dataAccess.js         list()/append() interface — swap point for the real backend
 js/app.js                Builder page wiring: row table, cascading selects, duplicate row, bulk-add, confirmation dialog
-js/shared-app.js         Shared view wiring: load, filter, CSV export
-js/admin-app.js          Admin page wiring: manage users (calls /admin/api/users) and add/remove overrides (calls /admin/api/rules) — see "Authentication" below
+js/shared-app.js         Shared view wiring: load, filter, CSV export, one-time upload of pre-fix localStorage data
+js/admin-app.js          Admin page wiring: manage users (calls /admin/api/users), add/remove overrides (calls /admin/api/rules), import a shared-view CSV — see "Authentication" below
 js/login.js              Posts to /api/login, redirects to ?redirect= target on success
 js/logout.js             Posts to /api/logout, then redirects to /login
 js/account.js            "My account" wiring: greets the signed-in user, posts to /api/account to change their own password
-js/utils.js              escapeHtml, CSV encoding, clipboard, file download, id generation
+js/utils.js              escapeHtml, CSV encoding/parsing, clipboard, file download, id generation
 functions/_middleware.js         Gates every request behind a session; /admin* additionally requires the admin role — see "Authentication" below
 functions/_lib/session.js        Signed session-cookie helpers (sign/verify, HMAC'd with SESSION_SECRET)
 functions/_lib/users.js          Password hashing (PBKDF2) and the KV-backed user store
